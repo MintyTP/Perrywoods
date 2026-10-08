@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#123524">
+<link rel="manifest" href="manifest.json">
 <title>Perrywoods FC Team Manager v20</title>
 <style>
 :root{--g:#123524;--g2:#1d5b3d;--bg:#f4f6f5;--card:#fff;--muted:#66736c;--line:#dce3df;--accent:#f2c94c}
@@ -40,6 +41,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px;borde
 <section id="setup" class="page active">
 <div class="card"><h2>Team setup</h2><div class="grid"><label>Team name<input id="teamName" placeholder="e.g. Juventus"></label><label>Match length<input id="matchLength" type="number" value="40" min="20"></label></div></div>
 <div class="card"><h2>Players A–H</h2><div id="players"></div></div>
+<div class="card"><div class="row"><h2>Match attendance</h2><span class="pill" id="attendanceCount">0 present</span></div><div class="small" style="margin-bottom:9px">Tick the players who are at this match. Attendance is recorded once when you start the match.</div><div id="attendance"></div><button class="secondary" style="margin-top:9px" onclick="markAllAttendance(true)">All present</button> <button class="secondary" style="margin-top:9px" onclick="markAllAttendance(false)">Clear</button></div>
 <div class="card"><button onclick="saveSetup()">Save team</button> <button class="secondary" onclick="exportData()">Export backup</button> <label class="btn secondary" style="display:inline-block">Import backup<input type="file" id="importFile" hidden accept=".json" onchange="importData(event)"></label></div>
 </section>
 
@@ -51,6 +53,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px;borde
 <div class="card"><div class="row"><div><h2 id="matchTitle">Match day</h2><div class="small" id="matchOpponent"></div></div><span class="pill" id="squadCount"></span></div>
 <div class="big" id="timer">20:00</div><div class="center"><button onclick="startTimer()" id="startBtn">Start</button> <button class="secondary" onclick="pauseTimer()">Pause</button> <button class="warn" onclick="resetTimer()">Reset</button></div></div>
 <div class="card"><div class="row"><h2>Current pitch</h2><span class="pill" id="periodLabel"></span></div><div class="pitch" id="pitch"></div><div class="subs" id="subInfo"></div></div>
+<div class="card"><div class="row"><h2>Attendance</h2><span class="pill" id="matchAttendanceCount">0 present</span></div><div id="matchAttendance"></div></div>
 <div class="card"><h2>Match events</h2><div class="grid3"><button onclick="goal()">⚽ Goal</button><button onclick="assist()">🅰️ Assist</button><button class="secondary" onclick="potm()">⭐ POTM</button></div><div id="events" class="small" style="margin-top:10px"></div></div>
 </section>
 
@@ -88,22 +91,23 @@ const FIXTURES = [
 ["08/05/2027","09:00","Barcelona","Dortmund"],["08/05/2027","10:30","Athletico","Sporting"],["08/05/2027","12:00","Juventus","Napoli"]
 ];
 
-let data = JSON.parse(localStorage.getItem("perrywoodsV20") || "null") || {
- team:"", players:["A","B","C","D","E","F","G","H"].map((x)=>({name:x,att:0,mins:0,def:0,mid:0,gk:0,st:0,goals:0,assists:0,potm:0})),
+let data = JSON.parse(localStorage.getItem("perrywoodsV21") || localStorage.getItem("perrywoodsV20") || "null") || {
+ team:"", players:["A","B","C","D","E","F","G","H"].map((x)=>({name:x,att:0,mins:0,def:0,mid:0,gk:0,st:0,goals:0,assists:0,potm:0,present:false})),
  history:[], drills:[], events:[], fixture:null
 };
-let timer=0, interval=null, running=false;
+data.players.forEach(p=>{p.present=!!p.present;p.mins=Number(p.mins||0);p.att=Number(p.att||0);p.def=Number(p.def||0);p.mid=Number(p.mid||0);p.gk=Number(p.gk||0);p.st=Number(p.st||0);});
+let timer=0, interval=null, running=false, startStamp=0, savedSeconds=0, attendanceRecorded=false;
 
-function save(){localStorage.setItem("perrywoodsV20",JSON.stringify(data));}
+function save(){localStorage.setItem("perrywoodsV21",JSON.stringify(data));}
 function init(){
- document.getElementById("players").innerHTML=data.players.map((p,i)=>`<label style="display:block;margin:7px 0">Player ${String.fromCharCode(65+i)}<input value="${esc(p.name)}" onchange="data.players[${i}].name=this.value;save()"></label>`).join("");
+ document.getElementById("players").innerHTML=data.players.map((p,i)=>`<label style="display:block;margin:7px 0">Player ${String.fromCharCode(65+i)}<input value="${esc(p.name)}" onchange="data.players[${i}].name=this.value;save();renderAttendance()"></label>`).join("");
  document.getElementById("teamName").value=data.team||"";
  document.getElementById("teamTitle").textContent=data.team?data.team+" · Minis":"Team setup";
- buildNav(); renderFixtures(); renderDrills(); renderStats(); renderPitch();
+ buildNav(); renderFixtures(); renderDrills(); renderStats(); renderPitch(); renderAttendance(); renderMatchAttendance(); updateTimerDisplay();
 }
 function esc(s){return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll('"',"&quot;")}
 function buildNav(){document.getElementById("nav").innerHTML=["setup","fixtures","match","stats","training"].map((x,i)=>`<button onclick="show('${x}')" id="nav-${x}">${["Team","Fixtures","Match","Stats","Training"][i]}</button>`).join("");}
-function show(id){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));document.getElementById("nav-"+id)?.classList.add("active");if(id==="stats")renderStats();if(id==="match")renderPitch();}
+function show(id){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));document.getElementById("nav-"+id)?.classList.add("active");if(id==="stats")renderStats();if(id==="match"){renderPitch();renderMatchAttendance();}if(id==="setup")renderAttendance();}
 function saveSetup(){data.team=document.getElementById("teamName").value.trim()||"Perrywoods Minis";save();document.getElementById("teamTitle").textContent=data.team+" · Minis";alert("Team saved");}
 function renderFixtures(){
  const team=data.team||"Juventus"; const rows=FIXTURES.filter(f=>f[2].toLowerCase()===team.toLowerCase()||f[3].toLowerCase()===team.toLowerCase());
@@ -136,6 +140,48 @@ function roleMap(){
  const pairs=[[G,H],[C,D],[E,F]][period];
  return {GK:A,ST:B,LD:C,RD:D,LM:E,RM:F,rest:pairs};
 }
+function presentPlayers(){return squad().filter(p=>p.present);}
+function renderAttendance(){
+ const ps=squad();
+ document.getElementById("attendance").innerHTML=ps.map((p,i)=>`<label style="display:inline-flex;align-items:center;gap:7px;margin:4px 8px 4px 0;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:${p.present?"#e9efeb":"#fff"}"><input type="checkbox" ${p.present?"checked":""} onchange="data.players[${i}].present=this.checked;save();renderAttendance();renderMatchAttendance()"><b>${esc(p.name)}</b></label>`).join("");
+ document.getElementById("attendanceCount").textContent=ps.filter(p=>p.present).length+" present";
+}
+function renderMatchAttendance(){
+ const ps=squad();
+ const box=document.getElementById("matchAttendance");
+ if(!box)return;
+ box.innerHTML=ps.map((p,i)=>`<button class="${p.present?"":"secondary"}" style="margin:3px" onclick="toggleAttendance(${i})">${p.present?"✓ ":""}${esc(p.name)}</button>`).join("");
+ document.getElementById("matchAttendanceCount").textContent=ps.filter(p=>p.present).length+" present";
+}
+function toggleAttendance(i){
+ data.players[i].present=!data.players[i].present;
+ save(); renderAttendance(); renderMatchAttendance();
+}
+function markAllAttendance(value){
+ squad().forEach(p=>p.present=value);
+ save(); renderAttendance(); renderMatchAttendance();
+}
+function recordAttendance(){
+ if(attendanceRecorded)return;
+ const present=presentPlayers();
+ present.forEach(p=>p.att=(Number(p.att)||0)+1);
+ attendanceRecorded=true; save(); renderStats();
+}
+function currentRoles(){
+ const m=roleMap(), out=[];
+ [["GK",m.GK,"gk"],["ST",m.ST,"st"],["DEF",m.LD,"def"],["DEF",m.RD,"def"],["MID",m.LM,"mid"],["MID",m.RM,"mid"]].forEach(([role,p,type])=>{if(p&&p.present)out.push([p,type]);});
+ return out;
+}
+function accruePlayingTime(delta){
+ if(!running || delta<=0)return;
+ currentRoles().forEach(([p,type])=>{
+   p.mins=(Number(p.mins)||0)+delta/60;
+   if(type==="def")p.def=(Number(p.def)||0)+delta/60;
+   if(type==="mid")p.mid=(Number(p.mid)||0)+delta/60;
+   if(type==="gk")p.gk=(Number(p.gk)||0)+delta/60;
+   if(type==="st")p.st=(Number(p.st)||0)+delta/60;
+ });
+}
 function renderPitch(){
  const ps=squad(), n=ps.length, m=roleMap();
  const name=x=>x?esc(x.name):"—";
@@ -146,9 +192,38 @@ function renderPitch(){
  document.getElementById("periodLabel").textContent=timer<20?"1st half":"2nd half";
 }
 function fmt(sec){sec=Math.max(0,Math.floor(sec));return String(Math.floor(sec/60)).padStart(2,"0")+":"+String(sec%60).padStart(2,"0")}
-function startTimer(){if(running)return;running=true;interval=setInterval(()=>{timer+=.1;if(timer>=40){timer=40;pauseTimer();autoSavePeriod();}document.getElementById("timer").textContent=fmt((40-timer)*60);renderPitch();},100);}
-function pauseTimer(){running=false;clearInterval(interval);interval=null}
-function resetTimer(){pauseTimer();timer=0;document.getElementById("timer").textContent="40:00";renderPitch()}
+function updateTimerDisplay(){document.getElementById("timer").textContent=fmt(40-timer);}
+function startTimer(){
+ if(running)return;
+ if(timer>=40)return;
+ recordAttendance();
+ running=true; startStamp=Date.now();
+ interval=setInterval(()=>{
+   const now=Date.now();
+   const newTimer=Math.min(40,savedSeconds+(now-startStamp)/1000);
+   const delta=newTimer-timer;
+   timer=newTimer;
+   accruePlayingTime(delta);
+   updateTimerDisplay();
+   renderPitch();
+   if(Math.floor(timer)!==Math.floor(savedSeconds)){savedSeconds=timer;save();}
+   if(timer>=40){pauseTimer();save();alert("Full time");}
+ },250);
+}
+function pauseTimer(){
+ if(!running)return;
+ const now=Date.now();
+ const newTimer=Math.min(40,savedSeconds+(now-startStamp)/1000);
+ const delta=newTimer-timer;
+ timer=newTimer;
+ accruePlayingTime(delta);
+ savedSeconds=timer;
+ running=false;clearInterval(interval);interval=null;save();updateTimerDisplay();renderPitch();renderStats();
+}
+function resetTimer(){
+ pauseTimer();timer=0;savedSeconds=0;attendanceRecorded=false;
+ document.getElementById("timer").textContent="40:00";renderPitch();renderStats();
+}
 function autoSavePeriod(){}
 function eventText(){document.getElementById("events").innerHTML=data.events.slice(-8).reverse().map(e=>`<div>${esc(e)}</div>`).join("")}
 function choosePlayer(label,cb){let names=squad().map((p,i)=>`${i+1}: ${p.name}`).join("\\n");let x=prompt(label+"\\n\\n"+names);let i=parseInt(x,10)-1;if(i>=0&&i<squad().length)cb(squad()[i])}
@@ -156,12 +231,13 @@ function goal(){choosePlayer("Goal by:",p=>{p.goals++;data.events.push("⚽ "+p.
 function assist(){choosePlayer("Assist by:",p=>{p.assists++;data.events.push("🅰️ "+p.name+" assist");save();eventText();renderStats()})}
 function potm(){choosePlayer("Player of the match:",p=>{p.potm++;data.events.push("⭐ "+p.name+" POTM");save();eventText();renderStats()})}
 function renderStats(){
- document.getElementById("statsTable").innerHTML="<table><tr><th>Player</th><th>Attend</th><th>Min</th><th>Def</th><th>Mid</th><th>G</th><th>A</th><th>POTM</th></tr>"+squad().map(p=>`<tr><td>${esc(p.name)}</td><td>${p.att}</td><td>${p.mins}</td><td>${p.def}</td><td>${p.mid}</td><td>${p.goals}</td><td>${p.assists}</td><td>${p.potm}</td></tr>`).join("")+"</table>";
+ document.getElementById("statsTable").innerHTML="<table><tr><th>Player</th><th>Attend</th><th>Min</th><th>Def</th><th>Mid</th><th>G</th><th>A</th><th>POTM</th></tr>"+squad().map(p=>`<tr><td>${esc(p.name)}</td><td>${p.att}</td><td>${Number(p.mins||0).toFixed(1)}</td><td>${Number(p.def||0).toFixed(1)}</td><td>${Number(p.mid||0).toFixed(1)}</td><td>${p.goals}</td><td>${p.assists}</td><td>${p.potm}</td></tr>`).join("")+"</table>";
 }
 function addDrill(){let a=document.getElementById("drillTitle").value.trim(),b=document.getElementById("drillNote").value.trim();if(!a)return;data.drills.push({a,b});save();renderDrills();document.getElementById("drillTitle").value="";document.getElementById("drillNote").value=""}
 function renderDrills(){document.getElementById("drills").innerHTML=data.drills.map(d=>`<div class="fixture"><b>${esc(d.a)}</b><div class="small">${esc(d.b)}</div></div>`).join("")}
 function exportData(){let blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="perrywoods-backup.json";a.click()}
 function importData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{data=JSON.parse(r.result);save();location.reload()}catch{alert("Invalid backup")}};r.readAsText(f)}
-init();eventText();document.getElementById("timer").textContent="40:00";
+init();eventText();updateTimerDisplay();
 </script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("service-worker.js").catch(()=>{}));}</script>
 </body></html>
