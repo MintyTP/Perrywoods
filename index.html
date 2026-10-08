@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#123524">
+<title>Perrywoods FC Team Manager v20</title>
+<style>
+:root{--g:#123524;--g2:#1d5b3d;--bg:#f4f6f5;--card:#fff;--muted:#66736c;--line:#dce3df;--accent:#f2c94c}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#18221d}
+header{background:var(--g);color:#fff;padding:16px 16px 14px;position:sticky;top:0;z-index:10}
+h1{font-size:20px;margin:0 0 3px}.sub{font-size:12px;opacity:.8}
+nav{display:flex;gap:5px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:65px;z-index:9;overflow:auto}
+nav button{border:0;background:none;padding:11px 12px;font-weight:700;color:var(--muted);white-space:nowrap}nav button.active{color:var(--g);border-bottom:3px solid var(--g)}
+main{max-width:900px;margin:auto;padding:12px 12px 80px}.page{display:none}.page.active{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px #0000000a}
+h2{font-size:16px;margin:0 0 10px}h3{font-size:14px;margin:12px 0 7px}
+button,.btn{border:0;border-radius:10px;padding:10px 13px;background:var(--g);color:white;font-weight:700;cursor:pointer}
+button.secondary,.secondary{background:#e9efeb;color:var(--g)}button.warn{background:#9d3a2e}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:9px;background:#fff;font:inherit}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between}.small{font-size:12px;color:var(--muted)}
+.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#e9efeb;color:var(--g);font-size:12px;font-weight:700}
+.fixture{padding:10px 0;border-bottom:1px solid var(--line)}.fixture:last-child{border-bottom:0}
+.pitch{background:#2e7d4f;border-radius:14px;padding:12px;min-height:440px;position:relative;color:#fff;overflow:hidden}
+.pitch:before{content:"";position:absolute;inset:12px;border:2px solid #ffffff88;border-radius:10px;pointer-events:none}
+.pos{position:absolute;transform:translate(-50%,-50%);text-align:center;width:95px}.pos .dot{background:#fff;color:var(--g);border-radius:50%;width:40px;height:40px;display:grid;place-items:center;margin:auto;font-weight:800}.pos small{display:block;margin-top:3px;font-weight:700;text-shadow:0 1px 2px #000}
+.gk{left:12%;top:50%}.ld{left:36%;top:32%}.rd{left:36%;top:68%}.lm{left:65%;top:32%}.rm{left:65%;top:68%}.st{left:88%;top:50%}
+.subs{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.subchip{background:#eef3f0;border:1px solid var(--line);padding:7px 9px;border-radius:9px;font-size:12px}
+.big{font-size:36px;font-weight:900;text-align:center;margin:3px 0}.center{text-align:center}
+table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--muted)}
+.notice{padding:9px;border-radius:10px;background:#fff8d8;border:1px solid #eadb8c;font-size:12px}
+@media(min-width:700px){.grid{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<header><h1>⚽ Perrywoods FC Team Manager</h1><div class="sub" id="teamTitle">Team setup</div></header>
+<nav id="nav"></nav>
+<main>
+<section id="setup" class="page active">
+<div class="card"><h2>Team setup</h2><div class="grid"><label>Team name<input id="teamName" placeholder="e.g. Juventus"></label><label>Match length<input id="matchLength" type="number" value="40" min="20"></label></div></div>
+<div class="card"><h2>Players A–H</h2><div id="players"></div></div>
+<div class="card"><button onclick="saveSetup()">Save team</button> <button class="secondary" onclick="exportData()">Export backup</button> <label class="btn secondary" style="display:inline-block">Import backup<input type="file" id="importFile" hidden accept=".json" onchange="importData(event)"></label></div>
+</section>
+
+<section id="fixtures" class="page">
+<div class="card"><div class="row"><h2>Juventus fixtures</h2><span class="pill" id="fixtureCount"></span></div><div id="fixtureList"></div></div>
+</section>
+
+<section id="match" class="page">
+<div class="card"><div class="row"><div><h2 id="matchTitle">Match day</h2><div class="small" id="matchOpponent"></div></div><span class="pill" id="squadCount"></span></div>
+<div class="big" id="timer">20:00</div><div class="center"><button onclick="startTimer()" id="startBtn">Start</button> <button class="secondary" onclick="pauseTimer()">Pause</button> <button class="warn" onclick="resetTimer()">Reset</button></div></div>
+<div class="card"><div class="row"><h2>Current pitch</h2><span class="pill" id="periodLabel"></span></div><div class="pitch" id="pitch"></div><div class="subs" id="subInfo"></div></div>
+<div class="card"><h2>Match events</h2><div class="grid3"><button onclick="goal()">⚽ Goal</button><button onclick="assist()">🅰️ Assist</button><button class="secondary" onclick="potm()">⭐ POTM</button></div><div id="events" class="small" style="margin-top:10px"></div></div>
+</section>
+
+<section id="stats" class="page">
+<div class="card"><h2>Season fairness & playing time</h2><div class="notice">Minutes are compared against attendance. Position history is tracked separately for defence, midfield, goalkeeper and striker.</div><div id="statsTable"></div></div>
+</section>
+
+<section id="training" class="page">
+<div class="card"><h2>Training drills</h2><div class="grid"><input id="drillTitle" placeholder="Drill name"><input id="drillNote" placeholder="Coaching note"></div><button style="margin-top:9px" onclick="addDrill()">Add drill</button><div id="drills"></div></div>
+</section>
+</main>
+<script>
+const FIXTURES = [
+["26/09/2026","09:00","Athletico","Barcelona"],["26/09/2026","10:30","Dortmund","Juventus"],["26/09/2026","12:00","Napoli","Sporting"],
+["03/10/2026","09:00","Juventus","Sporting"],["03/10/2026","10:30","Barcelona","Napoli"],["03/10/2026","12:00","Athletico","Dortmund"],
+["10/10/2026","09:00","Dortmund","Napoli"],["10/10/2026","10:30","Athletico","Juventus"],["10/10/2026","12:00","Barcelona","Sporting"],
+["17/10/2026","09:00","Athletico","Napoli"],["17/10/2026","10:30","Dortmund","Sporting"],["17/10/2026","12:00","Barcelona","Juventus"],
+["24/10/2026","09:00","Barcelona","Dortmund"],["24/10/2026","10:30","Athletico","Sporting"],["24/10/2026","12:00","Juventus","Napoli"],
+["07/11/2026","09:00","Napoli","Sporting"],["07/11/2026","10:30","Athletico","Barcelona"],["07/11/2026","12:00","Dortmund","Juventus"],
+["21/11/2026","09:00","Athletico","Dortmund"],["21/11/2026","10:30","Barcelona","Napoli"],["21/11/2026","12:00","Juventus","Sporting"],
+["28/11/2026","09:00","Barcelona","Sporting"],["28/11/2026","10:30","Dortmund","Napoli"],["28/11/2026","12:00","Athletico","Juventus"],
+["05/12/2026","09:00","Dortmund","Sporting"],["05/12/2026","10:30","Barcelona","Juventus"],["05/12/2026","12:00","Athletico","Napoli"],
+["12/12/2026","09:00","Juventus","Napoli"],["12/12/2026","10:30","Athletico","Sporting"],["12/12/2026","12:00","Barcelona","Dortmund"],
+["09/01/2027","09:00","Barcelona","Juventus"],["09/01/2027","10:30","Athletico","Napoli"],["09/01/2027","12:00","Dortmund","Sporting"],
+["16/01/2027","09:00","Dortmund","Juventus"],["16/01/2027","10:30","Napoli","Sporting"],["16/01/2027","12:00","Athletico","Barcelona"],
+["23/01/2027","09:00","Athletico","Juventus"],["23/01/2027","10:30","Barcelona","Sporting"],["23/01/2027","12:00","Dortmund","Napoli"],
+["06/02/2027","09:00","Barcelona","Napoli"],["06/02/2027","10:30","Athletico","Dortmund"],["06/02/2027","12:00","Juventus","Sporting"],
+["13/02/2027","09:00","Dortmund","Sporting"],["13/02/2027","10:30","Barcelona","Juventus"],["13/02/2027","12:00","Athletico","Napoli"],
+["06/03/2027","09:00","Athletico","Juventus"],["06/03/2027","10:30","Barcelona","Sporting"],["06/03/2027","12:00","Dortmund","Napoli"],
+["13/03/2027","09:00","Athletico","Sporting"],["13/03/2027","10:30","Juventus","Napoli"],["13/03/2027","12:00","Barcelona","Dortmund"],
+["10/04/2027","09:00","Athletico","Barcelona"],["10/04/2027","10:30","Dortmund","Juventus"],["10/04/2027","12:00","Napoli","Sporting"],
+["17/04/2027","09:00","Juventus","Sporting"],["17/04/2027","10:30","Barcelona","Napoli"],["17/04/2027","12:00","Athletico","Dortmund"],
+["24/04/2027","09:00","Dortmund","Napoli"],["24/04/2027","10:30","Athletico","Juventus"],["24/04/2027","12:00","Barcelona","Sporting"],
+["01/05/2027","09:00","Athletico","Napoli"],["01/05/2027","10:30","Dortmund","Sporting"],["01/05/2027","12:00","Barcelona","Juventus"],
+["08/05/2027","09:00","Barcelona","Dortmund"],["08/05/2027","10:30","Athletico","Sporting"],["08/05/2027","12:00","Juventus","Napoli"]
+];
+
+let data = JSON.parse(localStorage.getItem("perrywoodsV20") || "null") || {
+ team:"", players:["A","B","C","D","E","F","G","H"].map((x)=>({name:x,att:0,mins:0,def:0,mid:0,gk:0,st:0,goals:0,assists:0,potm:0})),
+ history:[], drills:[], events:[], fixture:null
+};
+let timer=0, interval=null, running=false;
+
+function save(){localStorage.setItem("perrywoodsV20",JSON.stringify(data));}
+function init(){
+ document.getElementById("players").innerHTML=data.players.map((p,i)=>`<label style="display:block;margin:7px 0">Player ${String.fromCharCode(65+i)}<input value="${esc(p.name)}" onchange="data.players[${i}].name=this.value;save()"></label>`).join("");
+ document.getElementById("teamName").value=data.team||"";
+ document.getElementById("teamTitle").textContent=data.team?data.team+" · Minis":"Team setup";
+ buildNav(); renderFixtures(); renderDrills(); renderStats(); renderPitch();
+}
+function esc(s){return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll('"',"&quot;")}
+function buildNav(){document.getElementById("nav").innerHTML=["setup","fixtures","match","stats","training"].map((x,i)=>`<button onclick="show('${x}')" id="nav-${x}">${["Team","Fixtures","Match","Stats","Training"][i]}</button>`).join("");}
+function show(id){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));document.getElementById("nav-"+id)?.classList.add("active");if(id==="stats")renderStats();if(id==="match")renderPitch();}
+function saveSetup(){data.team=document.getElementById("teamName").value.trim()||"Perrywoods Minis";save();document.getElementById("teamTitle").textContent=data.team+" · Minis";alert("Team saved");}
+function renderFixtures(){
+ const team=data.team||"Juventus"; const rows=FIXTURES.filter(f=>f[2].toLowerCase()===team.toLowerCase()||f[3].toLowerCase()===team.toLowerCase());
+ document.getElementById("fixtureCount").textContent=rows.length+" matches";
+ document.getElementById("fixtureList").innerHTML=rows.map((f,i)=>{let home=f[2],away=f[3],opp=home.toLowerCase()===team.toLowerCase()?away:home;return `<div class="fixture"><div class="row"><b>${home} vs ${away}</b><span>${f[1]}</span></div><div class="small">${f[0]} · Opponent: ${opp} <button class="secondary" style="float:right;padding:5px 8px" onclick='selectFixture(${JSON.stringify(f)})'>Select</button></div></div>`}).join("");
+}
+function selectFixture(f){data.fixture=f;save();document.getElementById("matchTitle").textContent=f[2]+" vs "+f[3];document.getElementById("matchOpponent").textContent=f[0]+" · "+f[1];show("match");}
+function squad(){return data.players.filter(p=>p.name.trim()).slice(0,8)}
+function plan(){
+ const ps=squad(), n=ps.length;
+ if(n<=6)return {type:"6",times:[0,20], note:"No substitutions. Keep positions during each half; rotate defence/midfield only at half-time."};
+ if(n===7)return {type:"7",times:[4,8,12,16,20,24,28,32,36],note:"One substitute. Five 4-minute rest periods per half; left/right side stays fixed. Use the same position for the incoming player."};
+ return {type:"8",times:[6.6667,13.3333,26.6667,33.3333],note:"Two substitutes together. Three playing periods per half; approximately every 6:40."};
+}
+function roleMap(){
+ const ps=squad(), n=ps.length;
+ if(n<6)return {};
+ const A=ps[0],B=ps[1],C=ps[2],D=ps[3],E=ps[4],F=ps[5],G=ps[6],H=ps[7];
+ if(n===6){
+  return {GK:A,ST:B,LD:C,RD:D,LM:E,RM:F};
+ }
+ if(n===7){
+  // Fixed sides. One sub takes the exact slot of the resting player.
+  const idx=Math.min(4,Math.floor(((timer%20)/4)));
+  const out=[G,C,D,E,F][idx];
+  return {GK:A,ST:B,LD:C,RD:D,LM:E,RM:F,rest:out};
+ }
+ // Eight-player display: two pairs rotate as units, fixed side.
+ const period=(timer%20)<6.6667?0:(timer%20)<13.3334?1:2;
+ const pairs=[[G,H],[C,D],[E,F]][period];
+ return {GK:A,ST:B,LD:C,RD:D,LM:E,RM:F,rest:pairs};
+}
+function renderPitch(){
+ const ps=squad(), n=ps.length, m=roleMap();
+ const name=x=>x?esc(x.name):"—";
+ const slots=[["gk","GK",m.GK],["ld","DEF L",m.LD],["rd","DEF R",m.RD],["lm","MID L",m.LM],["rm","MID R",m.RM],["st","ST",m.ST]];
+ document.getElementById("pitch").innerHTML=slots.map(s=>`<div class="pos ${s[0]}"><div class="dot">${name(s[2]).slice(0,1)}</div><small>${s[1]} · ${name(s[2])}</small></div>`).join("");
+ let rest=m.rest; document.getElementById("subInfo").innerHTML=n<=6?`<span class="subchip">6 players · no substitutes</span>`:`<span class="subchip">Off/rest: ${Array.isArray(rest)?rest.map(x=>esc(x.name)).join(" + "):esc(rest.name)}</span><span class="subchip">${plan().note}</span>`;
+ document.getElementById("squadCount").textContent=n+" players";
+ document.getElementById("periodLabel").textContent=timer<20?"1st half":"2nd half";
+}
+function fmt(sec){sec=Math.max(0,Math.floor(sec));return String(Math.floor(sec/60)).padStart(2,"0")+":"+String(sec%60).padStart(2,"0")}
+function startTimer(){if(running)return;running=true;interval=setInterval(()=>{timer+=.1;if(timer>=40){timer=40;pauseTimer();autoSavePeriod();}document.getElementById("timer").textContent=fmt((40-timer)*60);renderPitch();},100);}
+function pauseTimer(){running=false;clearInterval(interval);interval=null}
+function resetTimer(){pauseTimer();timer=0;document.getElementById("timer").textContent="40:00";renderPitch()}
+function autoSavePeriod(){}
+function eventText(){document.getElementById("events").innerHTML=data.events.slice(-8).reverse().map(e=>`<div>${esc(e)}</div>`).join("")}
+function choosePlayer(label,cb){let names=squad().map((p,i)=>`${i+1}: ${p.name}`).join("\\n");let x=prompt(label+"\\n\\n"+names);let i=parseInt(x,10)-1;if(i>=0&&i<squad().length)cb(squad()[i])}
+function goal(){choosePlayer("Goal by:",p=>{p.goals++;data.events.push("⚽ "+p.name+" goal");save();eventText();renderStats()})}
+function assist(){choosePlayer("Assist by:",p=>{p.assists++;data.events.push("🅰️ "+p.name+" assist");save();eventText();renderStats()})}
+function potm(){choosePlayer("Player of the match:",p=>{p.potm++;data.events.push("⭐ "+p.name+" POTM");save();eventText();renderStats()})}
+function renderStats(){
+ document.getElementById("statsTable").innerHTML="<table><tr><th>Player</th><th>Attend</th><th>Min</th><th>Def</th><th>Mid</th><th>G</th><th>A</th><th>POTM</th></tr>"+squad().map(p=>`<tr><td>${esc(p.name)}</td><td>${p.att}</td><td>${p.mins}</td><td>${p.def}</td><td>${p.mid}</td><td>${p.goals}</td><td>${p.assists}</td><td>${p.potm}</td></tr>`).join("")+"</table>";
+}
+function addDrill(){let a=document.getElementById("drillTitle").value.trim(),b=document.getElementById("drillNote").value.trim();if(!a)return;data.drills.push({a,b});save();renderDrills();document.getElementById("drillTitle").value="";document.getElementById("drillNote").value=""}
+function renderDrills(){document.getElementById("drills").innerHTML=data.drills.map(d=>`<div class="fixture"><b>${esc(d.a)}</b><div class="small">${esc(d.b)}</div></div>`).join("")}
+function exportData(){let blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="perrywoods-backup.json";a.click()}
+function importData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{data=JSON.parse(r.result);save();location.reload()}catch{alert("Invalid backup")}};r.readAsText(f)}
+init();eventText();document.getElementById("timer").textContent="40:00";
+</script>
+</body></html>
