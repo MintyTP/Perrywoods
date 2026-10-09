@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b1d4e">
 <link rel="manifest" href="manifest.json">
-<title>Perrywoods FC Team Manager v28</title>
+<title>Perrywoods FC Team Manager v30</title>
 <style>
 :root{--g:#0b1d4e;--g2:#123a91;--bg:#f3f5fb;--card:#fff;--muted:#59657f;--line:#d9dfed;--accent:#ffcc00}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#18221d}
@@ -35,7 +35,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px;borde
 </style>
 </head>
 <body>
-<header><img class="crest" src="icon-192.png" alt="Perrywoods FC crest"><div class="brand"><h1>Perrywoods FC Team Manager</h1><div class="sub" id="teamTitle">Team setup · Minis</div><span class="versionTag">APP v28</span></div></header>
+<header><img class="crest" src="icon-192.png" alt="Perrywoods FC crest"><div class="brand"><h1>Perrywoods FC Team Manager</h1><div class="sub" id="teamTitle">Team setup · Minis</div><span class="versionTag">APP v30</span></div></header>
 <nav id="nav"></nav>
 <main>
 <section id="setup" class="page active">
@@ -137,51 +137,34 @@ function roleSchedule(){
  if(n<6)return [];
  const g=chosenRolePlayer('gk'), st=chosenRolePlayer('st');
  const out=ps.filter(p=>p!==g&&p!==st);
- const make=(bench, slots)=>({rest:[bench],slots:{...slots}});
- const flip={DEF_L:'MID_L',DEF_R:'MID_R',MID_L:'DEF_L',MID_R:'DEF_R'};
+ const make=(rest, slots)=>({rest:Array.isArray(rest)?rest:[rest],slots:{...slots}});
+ const slot=(a,b,c,d)=>({DEF_L:out[a],DEF_R:out[b],MID_L:out[c],MID_R:out[d]});
  if(n===6){
+   // Six attending players: no substitutions during either half.
+   // Keep the four outfield players in fixed roles for the first half;
+   // currentRotation() swaps defence and midfield at half-time.
+   return [make([],slot(0,1,2,3))];
+ }
+ if(n===7){
+   // Five 4-minute blocks per half. Every outfield player has exactly
+   // two defensive blocks, two midfield blocks and one resting block.
    return [
-    {rest:[],slots:{DEF_L:out[0],DEF_R:out[1],MID_L:out[2],MID_R:out[3]}},
-    {rest:[],slots:{DEF_L:out[2],DEF_R:out[3],MID_L:out[0],MID_R:out[1]}}
+    make(out[4],slot(0,1,2,3)),
+    make(out[3],slot(0,1,2,4)),
+    make(out[1],slot(2,3,0,4)),
+    make(out[0],slot(2,4,1,3)),
+    make(out[2],slot(3,4,0,1))
    ];
  }
- // Build a true rolling substitution sequence. An incoming player enters in the
- // opposite line to the role they last played; the player leaving is selected
- // from that target line. This keeps two defenders and two midfielders on pitch.
- const blocks = n===7 ? 5 : 3;
- let slots={DEF_L:out[0],DEF_R:out[1],MID_L:out[2],MID_R:out[3]};
- let bench = n===7 ? out[4] : [out[4],out[5]];
- const schedules=[];
- schedules.push(make(bench,slots));
- if(n===7){
-   let benchLastRole='mid'; // first appearance for the bench player is midfield
-   for(let i=1;i<blocks;i++){
-     const target=benchLastRole==='mid'?'def':'mid';
-     const keys=target==='def'?['DEF_L','DEF_R']:['MID_L','MID_R'];
-     const k=keys[(i-1)%2];
-     const off=slots[k];
-     slots={...slots,[k]:bench};
-     bench=off;
-     benchLastRole=target;
-     schedules.push(make(bench,slots));
-   }
-   return schedules;
- }
- // With two substitutes, bring both on together, each into the opposite line
- // from the line they most recently played in.
- let benchLastRole=['mid','def'];
- for(let i=1;i<blocks;i++){
-   const targetRoles=benchLastRole.map(r=>r==='mid'?'def':'mid');
-   const keys=targetRoles.map((r,j)=>r==='def'?['DEF_L','DEF_R'][j]:['MID_L','MID_R'][j]);
-   const old=keys.map(k=>slots[k]);
-   slots={...slots,[keys[0]]:bench[0],[keys[1]]:bench[1]};
-   bench=old;
-   benchLastRole=targetRoles;
-   schedules.push(make(bench,slots));
- }
- return schedules;
+ // Six outfield players, three 6m40s blocks. Each player gets one
+ // defensive block, one midfield block and one resting block per half.
+ return [
+   make([out[4],out[5]],slot(0,1,2,3)),
+   make([out[1],out[3]],slot(2,4,0,5)),
+   make([out[0],out[2]],slot(3,5,1,4))
+ ];
 }
-function currentRotation(){const ps=presentPlayers(),n=ps.length;if(n<6)return null;const half=timer<1200?0:1, elapsed=timer<1200?timer:(timer-1200);let idx=0;if(n===7)idx=Math.min(4,Math.floor(elapsed/240));else if(n===8)idx=Math.min(2,Math.floor(elapsed/(1200/3)));const schedules=roleSchedule();let s=schedules[idx];if(n===6)s=schedules[half];if(half===1 && n>6){s={rest:s.rest.slice(),slots:Object.fromEntries(Object.entries(s.slots).map(([k,p])=>{const swap={DEF_L:'MID_L',DEF_R:'MID_R',MID_L:'DEF_L',MID_R:'DEF_R'};return [swap[k],p]}))};}return s}
+function currentRotation(){const ps=presentPlayers(),n=ps.length;if(n<6)return null;const half=timer<1200?0:1, elapsed=timer<1200?timer:(timer-1200);let idx=0;if(n===7)idx=Math.min(4,Math.floor(elapsed/240));else if(n===8)idx=Math.min(2,Math.floor(elapsed/(1200/3)));const schedules=roleSchedule();let s=schedules[idx];if(n===6)s=schedules[0];if(half===1){s={rest:s.rest.slice(),slots:Object.fromEntries(Object.entries(s.slots).map(([k,p])=>{const swap={DEF_L:'MID_L',DEF_R:'MID_R',MID_L:'DEF_L',MID_R:'DEF_R'};return [swap[k],p]}))};}return s}
 function currentRoles(){const ps=presentPlayers(),m=currentRotation(),out=[];if(!m||ps.length<6)return out;const A=chosenRolePlayer('gk'),B=chosenRolePlayer('st');if(!A||!B||A===B)return out;out.push([timer<1200?A:B,'gk'],[timer<1200?B:A,'st']);for(const [slot,p] of Object.entries(m.slots)){out.push([p,slot.startsWith('DEF')?'def':'mid'])}return out}
 function accrue(delta){if(!running||delta<=0)return;currentRoles().forEach(([p,t])=>{const m=delta/60;p.mins+=m;if(t==='def')p.def+=m;if(t==='mid')p.mid+=m;if(t==='gk')p.gk+=m;if(t==='st')p.st+=m})}
 function fmt(sec){sec=Math.max(0,Math.min(40*60,Math.floor(sec)));return String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0')}
