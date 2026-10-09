@@ -3,25 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#123524">
+<meta name="theme-color" content="#0b1d4e">
 <link rel="manifest" href="manifest.json">
-<title>Perrywoods FC Team Manager v20</title>
+<title>Perrywoods FC Team Manager v25</title>
 <style>
-:root{--g:#123524;--g2:#1d5b3d;--bg:#f4f6f5;--card:#fff;--muted:#66736c;--line:#dce3df;--accent:#f2c94c}
+:root{--g:#0b1d4e;--g2:#123a91;--bg:#f3f5fb;--card:#fff;--muted:#59657f;--line:#d9dfed;--accent:#ffcc00}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#18221d}
-header{background:var(--g);color:#fff;padding:16px 16px 14px;position:sticky;top:0;z-index:10}
-h1{font-size:20px;margin:0 0 3px}.sub{font-size:12px;opacity:.8}
+header{background:linear-gradient(115deg,#0b1d4e,#123a91);color:#fff;padding:12px 16px 12px;position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:12px;border-bottom:3px solid #ffcc00}
+header .crest{width:52px;height:52px;object-fit:contain;border-radius:50%;background:#0b1d4e;border:2px solid #ffcc00;flex-shrink:0}header .brand{min-width:0}h1{font-size:19px;margin:0 0 3px}.sub{font-size:12px;opacity:.88}
 nav{display:flex;gap:5px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:65px;z-index:9;overflow:auto}
-nav button{border:0;background:none;padding:11px 12px;font-weight:700;color:var(--muted);white-space:nowrap}nav button.active{color:var(--g);border-bottom:3px solid var(--g)}
+nav button{border:0;background:none;padding:11px 12px;font-weight:700;color:var(--muted);white-space:nowrap}nav button.active{color:var(--g);border-bottom:3px solid #ffcc00;background:#f5f7ff}
 main{max-width:900px;margin:auto;padding:12px 12px 80px}.page{display:none}.page.active{display:block}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px #0000000a}
 h2{font-size:16px;margin:0 0 10px}h3{font-size:14px;margin:12px 0 7px}
 button,.btn{border:0;border-radius:10px;padding:10px 13px;background:var(--g);color:white;font-weight:700;cursor:pointer}
-button.secondary,.secondary{background:#e9efeb;color:var(--g)}button.warn{background:#9d3a2e}
+button.secondary,.secondary{background:#e8edfa;color:var(--g)}button.warn{background:#9d3a2e}
 input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:9px;background:#fff;font:inherit}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .row{display:flex;gap:8px;align-items:center;justify-content:space-between}.small{font-size:12px;color:var(--muted)}
-.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#e9efeb;color:var(--g);font-size:12px;font-weight:700}
+.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#e8edfa;color:var(--g);font-size:12px;font-weight:700}
 .fixture{padding:10px 0;border-bottom:1px solid var(--line)}.fixture:last-child{border-bottom:0}
 .pitch{background:#2e7d4f;border-radius:14px;padding:12px;min-height:440px;position:relative;color:#fff;overflow:hidden}
 .pitch:before{content:"";position:absolute;inset:12px;border:2px solid #ffffff88;border-radius:10px;pointer-events:none}
@@ -35,12 +35,13 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px;borde
 </style>
 </head>
 <body>
-<header><h1>⚽ Perrywoods FC Team Manager</h1><div class="sub" id="teamTitle">Team setup</div></header>
+<header><img class="crest" src="icon-192.png" alt="Perrywoods FC crest"><div class="brand"><h1>Perrywoods FC Team Manager</h1><div class="sub" id="teamTitle">Team setup · Minis</div></div></header>
 <nav id="nav"></nav>
 <main>
 <section id="setup" class="page active">
 <div class="card"><h2>Team setup</h2><div class="grid"><label>Team name<input id="teamName" placeholder="e.g. Juventus"></label><label>Match length<input id="matchLength" type="number" value="40" min="20"></label></div></div>
 <div class="card"><h2>Players A–H</h2><div id="players"></div></div>
+<div class="card"><h2>Goalkeeper & striker rotation</h2><div class="small" style="margin-bottom:8px">Choose who starts in goal and striker. They automatically swap at half-time.</div><div class="grid"><label>First-half goalkeeper<select id="gkSelect" onchange="setRoleChoice('gk',this.value)"></select></label><label>First-half striker<select id="stSelect" onchange="setRoleChoice('st',this.value)"></select></label></div><div class="small" id="roleChoiceNote" style="margin-top:8px"></div></div>
 <div class="card"><div class="row"><h2>Match attendance</h2><span class="pill" id="attendanceCount">0 present</span></div><div class="small" style="margin-bottom:9px">Tick the players who are at this match. Attendance is recorded once when you start the match.</div><div id="attendance"></div><button class="secondary" style="margin-top:9px" onclick="markAllAttendance(true)">All present</button> <button class="secondary" style="margin-top:9px" onclick="markAllAttendance(false)">Clear</button></div>
 <div class="card"><button onclick="saveSetup()">Save team</button> <button class="secondary" onclick="exportData()">Export backup</button> <label class="btn secondary" style="display:inline-block">Import backup<input type="file" id="importFile" hidden accept=".json" onchange="importData(event)"></label></div>
 </section>
@@ -58,7 +59,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px;borde
 </section>
 
 <section id="stats" class="page">
-<div class="card"><h2>Season fairness & playing time</h2><div class="notice">Minutes are compared against attendance. Position history is tracked separately for defence, midfield, goalkeeper and striker.</div><div id="statsTable"></div></div>
+<div class="card"><h2>Season position appearances & playing time</h2><div class="notice">GK / ST counts record the number of match halves played in each role. The selected goalkeeper and striker swap roles at half-time, so each records one GK and one striker appearance per completed match.</div><div id="statsTable"></div></div>
 </section>
 
 <section id="training" class="page">
@@ -93,31 +94,38 @@ const FIXTURES = [
 
 
 
-const DEFAULT_PLAYERS = ["A","B","C","D","E","F","G","H"].map(name=>({name,att:0,mins:0,def:0,mid:0,gk:0,st:0,goals:0,assists:0,potm:0,present:false}));
-let data = JSON.parse(localStorage.getItem("perrywoodsV22") || localStorage.getItem("perrywoodsV21") || localStorage.getItem("perrywoodsV20") || "null") || {team:"Juventus",players:DEFAULT_PLAYERS,history:[],drills:[],events:[],fixture:null};
+const DEFAULT_PLAYERS = ["A","B","C","D","E","F","G","H"].map(name=>({name,att:0,mins:0,def:0,mid:0,gk:0,st:0,gkApps:0,stApps:0,goals:0,assists:0,potm:0,present:false}));
+let data = JSON.parse(localStorage.getItem("perrywoodsV24") || localStorage.getItem("perrywoodsV21") || localStorage.getItem("perrywoodsV20") || "null") || {team:"Juventus",players:DEFAULT_PLAYERS,history:[],drills:[],events:[],fixture:null};
 data.players = (data.players||DEFAULT_PLAYERS).slice(0,8).map((p,i)=>Object.assign(DEFAULT_PLAYERS[i],p||{}));
-data.players.forEach(p=>{p.att=Number(p.att)||0;p.mins=Number(p.mins)||0;p.def=Number(p.def)||0;p.mid=Number(p.mid)||0;p.gk=Number(p.gk)||0;p.st=Number(p.st)||0;p.goals=Number(p.goals)||0;p.assists=Number(p.assists)||0;p.potm=Number(p.potm)||0;p.present=!!p.present});
-let timer=0, running=false, interval=null, lastTick=0, attendanceRecorded=false, matchStarted=false;
-const save=()=>localStorage.setItem("perrywoodsV22",JSON.stringify(data));
+data.players.forEach(p=>{p.att=Number(p.att)||0;p.mins=Number(p.mins)||0;p.def=Number(p.def)||0;p.mid=Number(p.mid)||0;p.gk=Number(p.gk)||0;p.st=Number(p.st)||0;p.gkApps=Number(p.gkApps)||0;p.stApps=Number(p.stApps)||0;p.goals=Number(p.goals)||0;p.assists=Number(p.assists)||0;p.potm=Number(p.potm)||0;p.present=!!p.present});
+data.roles=data.roles||{gkFirst:"",stFirst:""};
+let timer=0, running=false, interval=null, lastTick=0, attendanceRecorded=false, matchStarted=false, roleAppsRecorded=false;
+const save=()=>localStorage.setItem("perrywoodsV24",JSON.stringify(data));
 function esc(s){return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll('"',"&quot;")}
 function squad(){return data.players.filter(p=>p.name.trim()).slice(0,8)}
 function presentPlayers(){return squad().filter(p=>p.present)}
 function buildNav(){document.getElementById("nav").innerHTML=["setup","fixtures","match","stats","training"].map((x,i)=>`<button onclick="show('${x}')" id="nav-${x}">${["Team","Fixtures","Match","Stats","Training"][i]}</button>`).join("")}
-function show(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));document.getElementById('nav-'+id)?.classList.add('active');if(id==='stats')renderStats();if(id==='match'){renderPitch();renderMatchAttendance();updateTimerDisplay()}if(id==='setup')renderAttendance()}
+function show(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));document.getElementById('nav-'+id)?.classList.add('active');if(id==='stats')renderStats();if(id==='match'){renderPitch();renderMatchAttendance();updateTimerDisplay()}if(id==='setup'){renderAttendance();renderRoleChoices()}}
 function renderPlayers(){document.getElementById('players').innerHTML=squad().map((p,i)=>`<div class="row" style="margin:6px 0"><b>${String.fromCharCode(65+i)}</b><input value="${esc(p.name)}" onchange="data.players[${i}].name=this.value.trim()||'${String.fromCharCode(65+i)}';save();renderAttendance();renderMatchAttendance();renderStats()"></div>`).join('')}
 function saveSetup(){data.team=document.getElementById('teamName').value.trim()||'Juventus';save();document.getElementById('teamTitle').textContent=data.team+' · Minis';renderFixtures();alert('Team saved')}
 function markAllAttendance(v){squad().forEach(p=>p.present=v);save();renderAttendance();renderMatchAttendance();}
-function renderAttendance(){const ps=squad();document.getElementById('attendance').innerHTML=ps.map((p,i)=>`<label style="display:inline-flex;align-items:center;gap:7px;margin:4px 8px 4px 0;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:${p.present?'#e9efeb':'#fff'}"><input type="checkbox" ${p.present?'checked':''} onchange="data.players[${i}].present=this.checked;save();renderAttendance();renderMatchAttendance()"><b>${esc(p.name)}</b></label>`).join('');document.getElementById('attendanceCount').textContent=ps.filter(p=>p.present).length+' present'}
+function renderAttendance(){const ps=squad();document.getElementById('attendance').innerHTML=ps.map((p,i)=>`<label style="display:inline-flex;align-items:center;gap:7px;margin:4px 8px 4px 0;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:${p.present?'#e9efeb':'#fff'}"><input type="checkbox" ${p.present?'checked':''} onchange="data.players[${i}].present=this.checked;save();renderAttendance();renderMatchAttendance();renderRoleChoices();renderPitch();updateRotationInfo()"><b>${esc(p.name)}</b></label>`).join('');document.getElementById('attendanceCount').textContent=ps.filter(p=>p.present).length+' present';renderRoleChoices()}
 function renderMatchAttendance(){const ps=squad();document.getElementById('matchAttendance').innerHTML=ps.map((p,i)=>`<button class="${p.present?'':'secondary'}" style="margin:3px" onclick="toggleAttendance(${i})">${p.present?'✓ ':''}${esc(p.name)}</button>`).join('');document.getElementById('matchAttendanceCount').textContent=ps.filter(p=>p.present).length+' present'}
-function toggleAttendance(i){if(matchStarted)return;data.players[i].present=!data.players[i].present;save();renderAttendance();renderMatchAttendance();renderPitch();updateRotationInfo()}
+function toggleAttendance(i){if(matchStarted)return;data.players[i].present=!data.players[i].present;save();renderAttendance();renderMatchAttendance();renderRoleChoices();renderPitch();updateRotationInfo()}
+function renderRoleChoices(){const ps=presentPlayers();['gk','st'].forEach(role=>{const el=document.getElementById(role+'Select');if(!el)return;const old=data.roles[role+'First'];el.innerHTML='<option value="">Choose player…</option>'+ps.map(p=>`<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('');if(old&&ps.some(p=>p.name===old))el.value=old;});const g=data.roles.gkFirst,st=data.roles.stFirst;const note=document.getElementById('roleChoiceNote');if(note)note.textContent=(g&&st&&g!==st)?`${g} starts in goal and becomes striker at half-time. ${st} starts as striker and becomes goalkeeper.`:'Choose two different attending players. The same player cannot start in both roles.';}
+function setRoleChoice(role,value){data.roles[role+'First']=value; if(data.roles.gkFirst&&data.roles.gkFirst===data.roles.stFirst){alert('Choose two different players for goalkeeper and striker.');data.roles[role+'First']='';renderRoleChoices();return;}save();renderRoleChoices();renderPitch();updateRotationInfo()}
 function recordAttendance(){if(attendanceRecorded)return;presentPlayers().forEach(p=>p.att++);attendanceRecorded=true;save();renderStats()}
+function chosenRolePlayer(role){return presentPlayers().find(p=>p.name===data.roles[role+'First'])||null}
+function validateRoles(){const g=chosenRolePlayer('gk'),st=chosenRolePlayer('st');if(!g||!st||g===st){alert('Before starting, choose two different attending players for first-half goalkeeper and striker in Team.');show('setup');return false;}return true}
+function recordRoleAppearances(){if(roleAppsRecorded)return;const g=chosenRolePlayer('gk'),st=chosenRolePlayer('st');if(!g||!st||g===st)return;g.gkApps++;g.stApps++;st.stApps++;st.gkApps++;roleAppsRecorded=true;save();renderStats()}
 function renderFixtures(){const team=(data.team||'Juventus').toLowerCase();const rows=FIXTURES.filter(f=>f[2].toLowerCase()===team||f[3].toLowerCase()===team);document.getElementById('fixtureCount').textContent=rows.length+' matches';document.getElementById('fixtureList').innerHTML=rows.map(f=>{const opp=f[2].toLowerCase()===team?f[3]:f[2];return `<div class="fixture"><div class="row"><b>${f[2]} vs ${f[3]}</b><span>${f[1]}</span></div><div class="small">${f[0]} · Opponent: ${opp}<button class="secondary" style="float:right;padding:5px 8px" onclick='selectFixture(${JSON.stringify(f)})'>Select</button></div></div>`}).join('')}
-function selectFixture(f){if(running)pauseTimer();data.fixture=f;resetTimer();document.getElementById('matchTitle').textContent=f[2]+' vs '+f[3];document.getElementById('matchOpponent').textContent=f[0]+' · '+f[1];show('match')}
+function selectFixture(f){if(running)pauseTimer();roleAppsRecorded=false;data.fixture=f;resetTimer();document.getElementById('matchTitle').textContent=f[2]+' vs '+f[3];document.getElementById('matchOpponent').textContent=f[0]+' · '+f[1];show('match')}
 function plan(){const n=presentPlayers().length;if(n<6)return {n,times:[],note:'Need at least 6 players'};if(n===6)return {n,times:[20],note:'No substitutions during either half. Outfield players swap defence/midfield at half-time. GK and striker swap.'};if(n===7)return {n,times:[4,8,12,16,20,24,28,32,36],note:'One outfield player rotates every 4 minutes. The 20:00 change is the half-time rotation.'};return {n,times:[6+2/3,13+1/3,20,26+2/3,33+1/3],note:'Two outfield players rotate together every 6:40. Half-time also swaps defence/midfield and GK/striker.'}}
 function roleSchedule(){
  const ps=presentPlayers(), n=ps.length;
  if(n<6)return [];
- const out=ps.slice(2);
+ const g=chosenRolePlayer('gk'), st=chosenRolePlayer('st');
+ const out=ps.filter(p=>p!==g&&p!==st);
  if(n===6){
    return [{rest:[],slots:{DEF_L:out[0],DEF_R:out[1],MID_L:out[2],MID_R:out[3]}}, {rest:[],slots:{DEF_L:out[2],DEF_R:out[3],MID_L:out[0],MID_R:out[1]}}];
  }
@@ -142,7 +150,7 @@ function roleSchedule(){
  ];
 }
 function currentRotation(){const ps=presentPlayers(),n=ps.length;if(n<6)return null;const half=timer<1200?0:1, elapsed=timer<1200?timer:(timer-1200);let idx=0;if(n===7)idx=Math.min(4,Math.floor(elapsed/240));else if(n===8)idx=Math.min(2,Math.floor(elapsed/(1200/3)));const schedules=roleSchedule();let s=schedules[idx];if(n===6)s=schedules[half];if(half===1 && n>6){s={rest:s.rest.slice(),slots:Object.fromEntries(Object.entries(s.slots).map(([k,p])=>{const swap={DEF_L:'MID_L',DEF_R:'MID_R',MID_L:'DEF_L',MID_R:'DEF_R'};return [swap[k],p]}))};}return s}
-function currentRoles(){const ps=presentPlayers(),m=currentRotation(),out=[];if(!m||ps.length<6)return out;const A=ps[0],B=ps[1];out.push([A,'gk'],[B,'st']);for(const [slot,p] of Object.entries(m.slots)){out.push([p,slot.startsWith('DEF')?'def':'mid'])}return out}
+function currentRoles(){const ps=presentPlayers(),m=currentRotation(),out=[];if(!m||ps.length<6)return out;const A=chosenRolePlayer('gk'),B=chosenRolePlayer('st');if(!A||!B||A===B)return out;out.push([timer<1200?A:B,'gk'],[timer<1200?B:A,'st']);for(const [slot,p] of Object.entries(m.slots)){out.push([p,slot.startsWith('DEF')?'def':'mid'])}return out}
 function accrue(delta){if(!running||delta<=0)return;currentRoles().forEach(([p,t])=>{const m=delta/60;p.mins+=m;if(t==='def')p.def+=m;if(t==='mid')p.mid+=m;if(t==='gk')p.gk+=m;if(t==='st')p.st+=m})}
 function fmt(sec){sec=Math.max(0,Math.min(40*60,Math.floor(sec)));return String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0')}
 function nextEvent(){const n=presentPlayers().length;if(n<6)return null;const times=plan().times.map(x=>x*60);for(const t of times)if(t>timer+0.01)return t;return null}
@@ -158,10 +166,10 @@ function upcomingChange(){const n=presentPlayers().length;if(n<6)return null;con
 function updateRotationInfo(){const el=document.getElementById('subInfo');if(!el)return;const p=plan(),nxt=nextEvent(),ch=upcomingChange();let html=`<span class="subchip">${p.n} players attending</span>`;
  if(nxt!=null){html+=`<div class="nextLarge">NEXT CHANGE: ${eventLabel(nxt)}</div><div class="subchip">In ${fmt(Math.max(0,nxt-timer))}</div>`;}else html+=`<div class="nextLarge">${timer>=2400?'FULL TIME':'NO MORE CHANGES'}</div>`;
  if(ch&&ch.type==='sub'&&ch.changes.length){html+=`<div class="changeBox"><div class="changeTitle">SUBSTITUTION — ${fmt(ch.t)}</div><div class="changeGrid">`;ch.changes.forEach(c=>{html+=`<div class="offBox">⬅ SUB OFF<br>${esc(c.off.name)}<small>${slotRole(c.slot)}</small></div><div class="onBox">SUB ON ➡<br>${esc(c.on.name)}<small>${slotRole(c.slot)}</small></div>`});html+=`</div></div>`;}
- else if(ch&&ch.type==='half'){const ps=presentPlayers(),m0=roleSchedule()[ps.length===6?0:0], swaps=[];if(ps[0]&&ps[1]){swaps.push(`GK ${esc(ps[0].name)} → ST`);swaps.push(`ST ${esc(ps[1].name)} → GK`);}if(m0&&m0.slots){for(const slot of ['DEF_L','DEF_R','MID_L','MID_R']){const p=m0.slots[slot];if(p)swaps.push(`${esc(p.name)}: ${slotRole(slot)} → ${slot.startsWith('DEF')?'MIDFIELD':'DEFENCE'}`);}}html+=`<div class="changeBox"><div class="changeTitle">HALF-TIME — POSITION CHANGES</div><div class="subNow">${swaps.join('<br>')}</div></div>`;}
+ else if(ch&&ch.type==='half'){const ps=presentPlayers(),m0=roleSchedule()[ps.length===6?0:0], swaps=[];const g=chosenRolePlayer('gk'),st=chosenRolePlayer('st');if(g&&st){swaps.push(`GK ${esc(g.name)} → ST`);swaps.push(`ST ${esc(st.name)} → GK`);}if(m0&&m0.slots){for(const slot of ['DEF_L','DEF_R','MID_L','MID_R']){const p=m0.slots[slot];if(p)swaps.push(`${esc(p.name)}: ${slotRole(slot)} → ${slot.startsWith('DEF')?'MIDFIELD':'DEFENCE'}`);}}html+=`<div class="changeBox"><div class="changeTitle">HALF-TIME — POSITION CHANGES</div><div class="subNow">${swaps.join('<br>')}</div></div>`;}
  if(p.times.length){html+=`<div style="width:100%;font-size:12px;color:var(--muted);margin-top:8px"><b>Changes:</b> ${p.times.map(t=>fmt(t*60)).join(' · ')}</div>`;}html+=`<div style="width:100%;font-size:12px;color:var(--muted);margin-top:4px">${esc(p.note)}</div>`;el.innerHTML=html}
-function renderPitch(){const ps=presentPlayers(),m=currentRotation();document.getElementById('squadCount').textContent=ps.length+' present';const name=p=>p?esc(p.name):'—';const slots=[['gk','GK',ps[0]],['ld','DEF L',m?.slots.DEF_L],['rd','DEF R',m?.slots.DEF_R],['lm','MID L',m?.slots.MID_L],['rm','MID R',m?.slots.MID_R],['st','ST',ps[1]]];document.getElementById('pitch').innerHTML=slots.map(s=>`<div class="pos ${s[0]}"><div class="dot">${name(s[2]).slice(0,1)}</div><small>${s[1]} · ${name(s[2])}</small></div>`).join('');updateRotationInfo()}
-function startTimer(){if(running||timer>=40*60)return;if(presentPlayers().length<6){alert('Select at least 6 players as attending before starting.');return}recordAttendance();running=true;matchStarted=true;lastTick=performance.now();interval=setInterval(()=>{const now=performance.now();const delta=Math.max(0,(now-lastTick)/1000);lastTick=now;timer=Math.min(40*60,timer+delta);accrue(delta);updateTimerDisplay();renderPitch();if(timer>=40*60){pauseTimer();alert('Full time')}} ,200)}
+function renderPitch(){const ps=presentPlayers(),m=currentRotation();document.getElementById('squadCount').textContent=ps.length+' present';const name=p=>p?esc(p.name):'—';const g=chosenRolePlayer('gk'),st=chosenRolePlayer('st');const slots=[['gk','GK',timer<1200?g:st],['ld','DEF L',m?.slots.DEF_L],['rd','DEF R',m?.slots.DEF_R],['lm','MID L',m?.slots.MID_L],['rm','MID R',m?.slots.MID_R],['st','ST',timer<1200?st:g]];document.getElementById('pitch').innerHTML=slots.map(s=>`<div class="pos ${s[0]}"><div class="dot">${name(s[2]).slice(0,1)}</div><small>${s[1]} · ${name(s[2])}</small></div>`).join('');updateRotationInfo()}
+function startTimer(){if(running||timer>=40*60)return;if(presentPlayers().length<6){alert('Select at least 6 players as attending before starting.');return}if(!validateRoles())return;recordAttendance();recordRoleAppearances();running=true;matchStarted=true;lastTick=performance.now();interval=setInterval(()=>{const now=performance.now();const delta=Math.max(0,(now-lastTick)/1000);lastTick=now;timer=Math.min(40*60,timer+delta);accrue(delta);updateTimerDisplay();renderPitch();if(timer>=40*60){pauseTimer();alert('Full time')}} ,200)}
 function pauseTimer(){if(!running)return;const now=performance.now();const delta=Math.max(0,(now-lastTick)/1000);timer=Math.min(40*60,timer+delta);accrue(delta);running=false;clearInterval(interval);interval=null;save();updateTimerDisplay();renderPitch();renderStats()}
 function resetTimer(){if(running)pauseTimer();timer=0;attendanceRecorded=false;matchStarted=false;save();updateTimerDisplay();renderPitch()}
 function choosePlayer(label,cb){const names=squad().map((p,i)=>`${i+1}: ${p.name}`).join('\n');const x=prompt(label+'\n\n'+names);const i=parseInt(x,10)-1;if(i>=0&&i<squad().length)cb(squad()[i])}
@@ -169,13 +177,13 @@ function goal(){choosePlayer('Goal by:',p=>{p.goals++;data.events.push('⚽ '+p.
 function assist(){choosePlayer('Assist by:',p=>{p.assists++;data.events.push('🅰️ '+p.name+' assist');save();eventText();renderStats()})}
 function potm(){choosePlayer('Player of the match:',p=>{p.potm++;data.events.push('⭐ '+p.name+' POTM');save();eventText();renderStats()})}
 function eventText(){document.getElementById('events').innerHTML=(data.events||[]).slice(-8).reverse().map(e=>`<div>${esc(e)}</div>`).join('')}
-function renderStats(){document.getElementById('statsTable').innerHTML='<table><tr><th>Player</th><th>Attend</th><th>Min</th><th>Def</th><th>Mid</th><th>GK</th><th>ST</th><th>G</th><th>A</th><th>POTM</th></tr>'+squad().map(p=>`<tr><td>${esc(p.name)}</td><td>${p.att}</td><td>${p.mins.toFixed(1)}</td><td>${p.def.toFixed(1)}</td><td>${p.mid.toFixed(1)}</td><td>${p.gk.toFixed(1)}</td><td>${p.st.toFixed(1)}</td><td>${p.goals}</td><td>${p.assists}</td><td>${p.potm}</td></tr>`).join('')+'</table>'}
+function renderStats(){document.getElementById('statsTable').innerHTML='<table><tr><th>Player</th><th>Attend</th><th>Min</th><th>Def min</th><th>Mid min</th><th>GK min</th><th>ST min</th><th>GK halves</th><th>ST halves</th><th>G</th><th>A</th><th>POTM</th></tr>'+squad().map(p=>`<tr><td>${esc(p.name)}</td><td>${p.att}</td><td>${p.mins.toFixed(1)}</td><td>${p.def.toFixed(1)}</td><td>${p.mid.toFixed(1)}</td><td>${p.gk.toFixed(1)}</td><td>${p.st.toFixed(1)}</td><td>${p.gkApps}</td><td>${p.stApps}</td><td>${p.goals}</td><td>${p.assists}</td><td>${p.potm}</td></tr>`).join('')+'</table>'}
 function addDrill(){const a=document.getElementById('drillTitle').value.trim(),b=document.getElementById('drillNote').value.trim();if(!a)return;data.drills.push({a,b});save();renderDrills();document.getElementById('drillTitle').value='';document.getElementById('drillNote').value=''}
 function renderDrills(){document.getElementById('drills').innerHTML=(data.drills||[]).map(d=>`<div class="fixture"><b>${esc(d.a)}</b><div class="small">${esc(d.b)}</div></div>`).join('')}
 function exportData(){const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='perrywoods-backup.json';a.click()}
 function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{data=JSON.parse(r.result);save();location.reload()}catch{alert('Invalid backup')}};r.readAsText(f)}
-function init(){document.getElementById('teamName').value=data.team||'Juventus';document.getElementById('teamTitle').textContent=(data.team||'Juventus')+' · Minis';renderPlayers();buildNav();renderFixtures();renderAttendance();renderMatchAttendance();renderStats();renderDrills();renderPitch();updateTimerDisplay();eventText();document.getElementById('nav-setup').classList.add('active')}
+function init(){document.getElementById('teamName').value=data.team||'Juventus';document.getElementById('teamTitle').textContent=(data.team||'Juventus')+' · Minis';renderPlayers();buildNav();renderFixtures();renderAttendance();renderRoleChoices();renderMatchAttendance();renderStats();renderDrills();renderPitch();updateTimerDisplay();eventText();document.getElementById('nav-setup').classList.add('active')}
 init();
 </script>
-<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('service-worker.js?v=23').catch(()=>{}))}</script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('service-worker.js?v=24').catch(()=>{}))}</script>
 </body></html>
