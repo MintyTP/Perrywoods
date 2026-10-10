@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b1d4e">
 <link rel="manifest" href="manifest.json">
-<title>Perrywoods FC Team Manager v37</title>
+<title>Perrywoods FC Team Manager v38</title>
 <style>
 :root{--g:#0b1d4e;--g2:#123a91;--bg:#f3f5fb;--card:#fff;--muted:#59657f;--line:#d9dfed;--accent:#ffcc00}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#18221d}
@@ -36,7 +36,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px;borde
 </style>
 </head>
 <body>
-<header><img class="crest" src="icon-192.png" alt="Perrywoods FC crest"><div class="brand"><h1>Perrywoods FC Team Manager</h1><div class="sub" id="teamTitle">Team setup · Minis</div><span class="versionTag">APP v37</span></div></header>
+<header><img class="crest" src="icon-192.png" alt="Perrywoods FC crest"><div class="brand"><h1>Perrywoods FC Team Manager</h1><div class="sub" id="teamTitle">Team setup · Minis</div><span class="versionTag">APP v38</span></div></header>
 <nav id="nav"></nav>
 <main>
 <section id="setup" class="page active">
@@ -125,11 +125,11 @@ function show(id){document.querySelectorAll('.page').forEach(x=>x.classList.remo
 function renderPlayers(){document.getElementById('players').innerHTML=squad().map((p,i)=>`<div class="row" style="margin:6px 0"><b>${String.fromCharCode(65+i)}</b><input value="${esc(p.name)}" onchange="data.players[${i}].name=this.value.trim()||'${String.fromCharCode(65+i)}';save();renderAttendance();renderMatchAttendance();renderStats()"></div>`).join('')}
 function saveSetup(){data.team=document.getElementById('teamName').value.trim()||'Juventus';save();document.getElementById('teamTitle').textContent=data.team+' · Minis';renderFixtures();alert('Team saved')}
 function markAllAttendance(v){squad().forEach(p=>p.present=v);save();renderAttendance();renderMatchAttendance();}
-function renderAttendance(){const ps=squad();document.getElementById('attendance').innerHTML=ps.map((p,i)=>`<label style="display:inline-flex;align-items:center;gap:7px;margin:4px 8px 4px 0;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:${p.present?'#e9efeb':'#fff'}"><input type="checkbox" ${p.present?'checked':''} onchange="data.players[${i}].present=this.checked;save();renderAttendance();renderMatchAttendance();renderRoleChoices();renderPitch();updateRotationInfo()"><b>${esc(p.name)}</b></label>`).join('');document.getElementById('attendanceCount').textContent=ps.filter(p=>p.present).length+' present';renderRoleChoices()}
+function renderAttendance(){const ps=squad();document.getElementById('attendance').innerHTML=ps.map((p,i)=>`<label style="display:inline-flex;align-items:center;gap:7px;margin:4px 8px 4px 0;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:${p.present?'#e9efeb':'#fff'}"><input type="checkbox" ${p.present?'checked':''} onchange="data.players[${i}].present=this.checked;save();renderAttendance();renderMatchAttendance();renderRoleChoices();renderPitch();updateRotationInfo();renderSubList()"><b>${esc(p.name)}</b></label>`).join('');document.getElementById('attendanceCount').textContent=ps.filter(p=>p.present).length+' present';renderRoleChoices()}
 function renderMatchAttendance(){const ps=squad();document.getElementById('matchAttendance').innerHTML=ps.map((p,i)=>`<button class="${p.present?'':'secondary'}" style="margin:3px" onclick="toggleAttendance(${i})">${p.present?'✓ ':''}${esc(p.name)}</button>`).join('');document.getElementById('matchAttendanceCount').textContent=ps.filter(p=>p.present).length+' present'}
-function toggleAttendance(i){if(matchStarted)return;data.players[i].present=!data.players[i].present;save();renderAttendance();renderMatchAttendance();renderRoleChoices();renderPitch();updateRotationInfo()}
+function toggleAttendance(i){if(matchStarted)return;data.players[i].present=!data.players[i].present;save();renderAttendance();renderMatchAttendance();renderRoleChoices();renderPitch();updateRotationInfo();renderSubList()}
 function renderRoleChoices(){const ps=presentPlayers();['gk','st'].forEach(role=>{const el=document.getElementById(role+'Select');if(!el)return;const old=data.roles[role+'First'];el.innerHTML='<option value="">Choose player…</option>'+ps.map(p=>`<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('');if(old&&ps.some(p=>p.name===old))el.value=old;});const g=data.roles.gkFirst,st=data.roles.stFirst;const note=document.getElementById('roleChoiceNote');if(note)note.textContent=(g&&st&&g!==st)?`${g} starts in goal and becomes striker at half-time. ${st} starts as striker and becomes goalkeeper.`:'Choose two different attending players. The same player cannot start in both roles.';}
-function setRoleChoice(role,value){data.roles[role+'First']=value; if(data.roles.gkFirst&&data.roles.gkFirst===data.roles.stFirst){alert('Choose two different players for goalkeeper and striker.');data.roles[role+'First']='';renderRoleChoices();return;}save();renderRoleChoices();renderPitch();updateRotationInfo()}
+function setRoleChoice(role,value){data.roles[role+'First']=value; if(data.roles.gkFirst&&data.roles.gkFirst===data.roles.stFirst){alert('Choose two different players for goalkeeper and striker.');data.roles[role+'First']='';renderRoleChoices();return;}save();renderRoleChoices();renderPitch();updateRotationInfo();renderSubList()}
 function recordAttendance(){if(attendanceRecorded)return;presentPlayers().forEach(p=>p.att++);attendanceRecorded=true;save();renderStats()}
 function chosenRolePlayer(role){return presentPlayers().find(p=>p.name===data.roles[role+'First'])||null}
 function validateRoles(){const g=chosenRolePlayer('gk'),st=chosenRolePlayer('st');if(!g||!st||g===st){alert('Before starting, choose two different attending players for first-half goalkeeper and striker in Team.');show('setup');return false;}return true}
@@ -193,7 +193,7 @@ function halfTimeSummaryHtml(){
  common.forEach(p=>{const a=Object.keys(before.slots).find(k=>before.slots[k]===p),b=Object.keys(after.slots).find(k=>after.slots[k]===p);if(a&&b&&a!==b)html+=`<div class="halfLine"><b>${esc(p.name)}</b>: ${slotRole(a)} → ${slotRole(b)}</div>`;});
  const beforePlayers=Object.values(before?.slots||{}),afterPlayers=Object.values(after?.slots||{});
  const off=beforePlayers.filter(p=>!afterPlayers.includes(p)),on=afterPlayers.filter(p=>!beforePlayers.includes(p));
- if(off.length&&on.length){const pairs=on.map((p,i)=>({off:off[i],on:p,slot:Object.keys(after.slots).find(k=>after.slots[k]===p)})).filter(c=>c.off&&c.slot);html+=`<div class="changeTitle" style="font-size:14px;margin-top:10px">OUTFIELD SUBSTITUTION</div><div class="changeGrid">${pairs.map(c=>`<div class="changePair"><div class="offBox"><span class="instructionLabel">CHANGE ${i+1} · 🔴 TAKE OFF</span>${esc(c.off.name)}<small>From ${slotRole(Object.keys(before.slots).find(k=>before.slots[k]===c.off))}</small></div><div class="pairArrow">→</div><div class="onBox"><span class="instructionLabel">CHANGE ${i+1} · 🟢 PUT ON</span>${esc(c.on.name)}<small>Into ${slotRole(c.slot)} · position after swap</small></div></div>`).join('')}</div>`;}
+ if(off.length&&on.length){const pairs=on.map((p,i)=>({off:off[i],on:p,slot:Object.keys(after.slots).find(k=>after.slots[k]===p)})).filter(c=>c.off&&c.slot);html+=`<div class="changeTitle" style="font-size:14px;margin-top:10px">OUTFIELD SUBSTITUTION</div><div class="changeGrid">${pairs.map((c,i)=>`<div class="changePair"><div class="offBox"><span class="instructionLabel">CHANGE ${i+1} · 🔴 TAKE OFF</span>${esc(c.off.name)}<small>From ${slotRole(Object.keys(before.slots).find(k=>before.slots[k]===c.off))}</small></div><div class="pairArrow">→</div><div class="onBox"><span class="instructionLabel">CHANGE ${i+1} · 🟢 PUT ON</span>${esc(c.on.name)}<small>Into ${slotRole(c.slot)} · position after swap</small></div></div>`).join('')}</div>`;}
  html+='</div>';return html;
 }
 function renderSubList(){
