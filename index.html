@@ -35,7 +35,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px;borde
 </style>
 </head>
 <body>
-<header><img class="crest" src="icon-192.png" alt="Perrywoods FC crest"><div class="brand"><h1>Perrywoods FC Team Manager</h1><div class="sub" id="teamTitle">Team setup · Minis</div><span class="versionTag">APP v31</span></div></header>
+<header><img class="crest" src="icon-192.png" alt="Perrywoods FC crest"><div class="brand"><h1>Perrywoods FC Team Manager</h1><div class="sub" id="teamTitle">Team setup · Minis</div><span class="versionTag">APP v33</span></div></header>
 <nav id="nav"></nav>
 <main>
 <section id="setup" class="page active">
@@ -131,40 +131,71 @@ function validateRoles(){const g=chosenRolePlayer('gk'),st=chosenRolePlayer('st'
 function recordRoleAppearances(){if(roleAppsRecorded)return;const g=chosenRolePlayer('gk'),st=chosenRolePlayer('st');if(!g||!st||g===st)return;g.gkApps++;g.stApps++;st.stApps++;st.gkApps++;roleAppsRecorded=true;save();renderStats()}
 function renderFixtures(){const team=(data.team||'Juventus').toLowerCase();const rows=FIXTURES.filter(f=>f[2].toLowerCase()===team||f[3].toLowerCase()===team);document.getElementById('fixtureCount').textContent=rows.length+' matches';document.getElementById('fixtureList').innerHTML=rows.map(f=>{const opp=f[2].toLowerCase()===team?f[3]:f[2];return `<div class="fixture"><div class="row"><b>${f[2]} vs ${f[3]}</b><span>${f[1]}</span></div><div class="small">${f[0]} · Opponent: ${opp}<button class="secondary" style="float:right;padding:5px 8px" onclick='selectFixture(${JSON.stringify(f)})'>Select</button></div></div>`}).join('')}
 function selectFixture(f){if(running)pauseTimer();roleAppsRecorded=false;data.fixture=f;resetTimer();document.getElementById('matchTitle').textContent=f[2]+' vs '+f[3];document.getElementById('matchOpponent').textContent=f[0]+' · '+f[1];show('match')}
-function plan(){const n=presentPlayers().length;if(n<6)return {n,times:[],note:'Need at least 6 players'};if(n===6)return {n,times:[20],note:'No substitutions during either half. Outfield players swap defence/midfield at half-time. GK and striker swap.'};if(n===7)return {n,times:[4,8,12,16,20,24,28,32,36],note:'One outfield player rotates every 4 minutes. The 20:00 change is the half-time rotation.'};return {n,times:[6+2/3,13+1/3,20,26+2/3,33+1/3],note:'Two outfield players rotate together every 6:40. Half-time also swaps defence/midfield and GK/striker.'}}
-function roleSchedule(){
+function plan(){const n=presentPlayers().length;if(n<6)return {n,times:[],note:'Need at least 6 players'};if(n===6)return {n,times:[20],note:'No substitutions during either half. Outfield players swap defence/midfield at half-time. GK and striker swap.'};if(n===7)return {n,times:[4,8,12,16,20,24,28,32,36],note:'One outfield player rotates every 4 minutes. At half-time the lines swap and one planned outfield substitution keeps the rotation continuous. Each outfield player gets 16 minutes in defence and 16 in midfield over 40 minutes.'};return {n,times:[6+2/3,13+1/3,20,26+2/3,33+1/3],note:'Two outfield players rotate together every 6:40. The same players remain on at half-time while defence/midfield swap. Each outfield player gets 13 minutes 20 seconds in defence and 13 minutes 20 seconds in midfield over 40 minutes.'}}
+function roleSchedule(half=0){
  const ps=presentPlayers(), n=ps.length;
  if(n<6)return [];
  const g=chosenRolePlayer('gk'), st=chosenRolePlayer('st');
  const out=ps.filter(p=>p!==g&&p!==st);
  const make=(rest, slots)=>({rest:Array.isArray(rest)?rest:[rest],slots:{...slots}});
+ const build=(restGroups, initialSlots)=>{
+   const schedules=[];let slots={...initialSlots};
+   schedules.push(make(restGroups[0],slots));
+   for(let i=1;i<restGroups.length;i++){
+     const nextRest=restGroups[i], incoming=restGroups[i-1].slice(), nextSlots={...slots};
+     const vacated=Object.keys(slots).filter(k=>nextRest.includes(slots[k]));
+     vacated.forEach((k,j)=>{nextSlots[k]=incoming[j];});
+     slots=nextSlots;schedules.push(make(nextRest,slots));
+   }
+   return schedules;
+ };
  const slot=(a,b,c,d)=>({DEF_L:out[a],DEF_R:out[b],MID_L:out[c],MID_R:out[d]});
- if(n===6){
-   // No substitutions: only the planned half-time role swap occurs.
-   return [make([],slot(0,1,2,3))];
+ if(n===6){return [make([],slot(0,1,2,3))];}
+ if(n===7){
+   // Five 4-minute blocks. Everyone rests once per half. The half-time schedule
+   // starts from the actual final first-half lineup, swaps lines, and makes one
+   // explicit substitution so the on-pitch group and rotation remain consistent.
+   if(half===0){
+     return build([[out[0]],[out[1]],[out[2]],[out[3]],[out[4]]],slot(1,4,2,3));
+   }
+   return build([[out[0]],[out[3]],[out[2]],[out[1]],[out[4]]],slot(1,2,4,3));
  }
- const restGroups = n===7
-   ? [[out[4]],[out[3]],[out[1]],[out[0]],[out[2]]]
-   : [[out[4],out[5]],[out[1],out[3]],[out[0],out[2]]];
- const schedules=[];
- let slots=slot(0,1,2,3);
- schedules.push(make(restGroups[0],slots));
- // At each change, only the players coming off and going on exchange places.
- // Everyone who remains on the pitch stays in their exact slot.
- for(let i=1;i<restGroups.length;i++){
-   const nextRest=restGroups[i];
-   const incoming=restGroups[i-1].slice();
-   const nextSlots={...slots};
-   const vacated=Object.keys(slots).filter(k=>nextRest.includes(slots[k]));
-   vacated.forEach((k,j)=>{nextSlots[k]=incoming[j];});
-   slots=nextSlots;
-   schedules.push(make(nextRest,slots));
+ // Six outfield players, three 6m40s blocks. Both halves keep the same players
+ // on the pitch at half-time; the second-half order starts with the pair resting
+ // at the end of the first half, after the defence/midfield swap.
+ if(half===0){
+   return build([[out[0],out[2]],[out[1],out[3]],[out[4],out[5]]],slot(1,3,4,5));
  }
- return schedules;
+ return build([[out[4],out[5]],[out[1],out[3]],[out[0],out[2]]],slot(1,3,0,2));
 }
-function currentRotation(){const ps=presentPlayers(),n=ps.length;if(n<6)return null;const half=timer<1200?0:1, elapsed=timer<1200?timer:(timer-1200);let idx=0;if(n===7)idx=Math.min(4,Math.floor(elapsed/240));else if(n===8)idx=Math.min(2,Math.floor(elapsed/(1200/3)));const schedules=roleSchedule();let s=schedules[idx];if(n===6)s=schedules[0];if(half===1){s={rest:s.rest.slice(),slots:Object.fromEntries(Object.entries(s.slots).map(([k,p])=>{const swap={DEF_L:'MID_L',DEF_R:'MID_R',MID_L:'DEF_L',MID_R:'DEF_R'};return [swap[k],p]}))};}return s}
+function currentRotation(){
+ const ps=presentPlayers(),n=ps.length;if(n<6)return null;
+ const half=timer<1200?0:1, elapsed=timer<1200?timer:(timer-1200);
+ let idx=0;if(n===7)idx=Math.min(4,Math.floor(elapsed/240));else if(n===8)idx=Math.min(2,Math.floor(elapsed/(1200/3)));
+ const schedules=roleSchedule(half);let s=schedules[idx];
+ if(n===6&&half===1){s={rest:s.rest.slice(),slots:Object.fromEntries(Object.entries(s.slots).map(([k,p])=>{const swap={DEF_L:'MID_L',DEF_R:'MID_R',MID_L:'DEF_L',MID_R:'DEF_R'};return [swap[k],p]}))};}
+ return s;
+}
+function halfTimeSummaryHtml(){
+ const saved=timer;timer=1199.9;const before=currentRotation();timer=1200.1;const after=currentRotation();timer=saved;
+ const g=chosenRolePlayer('gk'),st=chosenRolePlayer('st');const lines=[];
+ if(g&&st){lines.push(`🧤 ${esc(g.name)}: GK → ST`,`⚽ ${esc(st.name)}: ST → GK`);}
+ const beforePlayers=Object.values(before?.slots||{}),afterPlayers=Object.values(after?.slots||{});
+ const common=beforePlayers.filter(p=>afterPlayers.includes(p));
+ common.forEach(p=>{
+   const a=Object.keys(before.slots).find(k=>before.slots[k]===p),b=Object.keys(after.slots).find(k=>after.slots[k]===p);
+   if(a&&b&&slotRole(a)!==slotRole(b))lines.push(`${esc(p.name)}: ${slotRole(a)} → ${slotRole(b)}`);
+ });
+ const off=beforePlayers.filter(p=>!afterPlayers.includes(p)),on=afterPlayers.filter(p=>!beforePlayers.includes(p));
+ if(off.length&&on.length){
+   on.forEach(p=>{const slot=Object.keys(after.slots).find(k=>after.slots[k]===p);lines.push(`🔴 SUB OFF ${esc(off.map(x=>x.name).join(', '))} · 🟢 SUB ON ${esc(p.name)} (${slotRole(slot)})`);});
+ }
+ return `<div class="changeBox"><div class="changeTitle">HALF-TIME — POSITION CHANGES</div><div class="subNow">${lines.join('<br>')}</div></div>`;
+}
 function currentRoles(){const ps=presentPlayers(),m=currentRotation(),out=[];if(!m||ps.length<6)return out;const A=chosenRolePlayer('gk'),B=chosenRolePlayer('st');if(!A||!B||A===B)return out;out.push([timer<1200?A:B,'gk'],[timer<1200?B:A,'st']);for(const [slot,p] of Object.entries(m.slots)){out.push([p,slot.startsWith('DEF')?'def':'mid'])}return out}
 function accrue(delta){if(!running||delta<=0)return;currentRoles().forEach(([p,t])=>{const m=delta/60;p.mins+=m;if(t==='def')p.def+=m;if(t==='mid')p.mid+=m;if(t==='gk')p.gk+=m;if(t==='st')p.st+=m})}
+// Advance the clock in segments split exactly at each substitution, half-time and full-time boundary. This prevents a timer tick that crosses a boundary from crediting the whole tick to the wrong lineup.
+function advanceMatchClock(delta){let remaining=Math.max(0,delta);while(remaining>1e-7&&timer<2400){const boundaries=plan().times.map(x=>x*60).filter(t=>t>timer+1e-7);boundaries.push(2400);const next=Math.min(...boundaries);const step=Math.min(remaining,Math.max(0,next-timer));if(step<=1e-7)break;accrue(step);timer=Math.min(2400,timer+step);remaining-=step;}}
 function fmt(sec){sec=Math.max(0,Math.min(40*60,Math.floor(sec)));return String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0')}
 function nextEvent(){const n=presentPlayers().length;if(n<6)return null;const times=plan().times.map(x=>x*60);for(const t of times)if(t>timer+0.01)return t;return null}
 function eventLabel(t){if(t==null)return 'Full time';if(Math.abs(t-1200)<0.01)return 'HALF-TIME';return `Next substitution ${fmt(t)}`}
@@ -179,11 +210,11 @@ function upcomingChange(){const n=presentPlayers().length;if(n<6)return null;con
 function updateRotationInfo(){const el=document.getElementById('subInfo');if(!el)return;const p=plan(),nxt=nextEvent(),ch=upcomingChange();let html=`<span class="subchip">${p.n} players attending</span>`;
  if(nxt!=null){html+=`<div class="nextLarge">NEXT CHANGE: ${eventLabel(nxt)}</div><div class="subchip">In ${fmt(Math.max(0,nxt-timer))}</div>`;}else html+=`<div class="nextLarge">${timer>=2400?'FULL TIME':'NO MORE CHANGES'}</div>`;
  if(ch&&ch.type==='sub'&&ch.changes.length){html+=`<div class="changeBox"><div class="changeTitle">SUBSTITUTION — ${fmt(ch.t)}</div><div class="changeGrid">`;ch.changes.forEach(c=>{html+=`<div class="offBox">⬅ SUB OFF<br>${esc(c.off.name)}<small>${slotRole(c.slot)}</small></div><div class="onBox">SUB ON ➡<br>${esc(c.on.name)}<small>${slotRole(c.slot)}</small></div>`});html+=`</div></div>`;}
- else if(ch&&ch.type==='half'){const ps=presentPlayers(),m0=roleSchedule()[ps.length===6?0:0], swaps=[];const g=chosenRolePlayer('gk'),st=chosenRolePlayer('st');if(g&&st){swaps.push(`GK ${esc(g.name)} → ST`);swaps.push(`ST ${esc(st.name)} → GK`);}if(m0&&m0.slots){for(const slot of ['DEF_L','DEF_R','MID_L','MID_R']){const p=m0.slots[slot];if(p)swaps.push(`${esc(p.name)}: ${slotRole(slot)} → ${slot.startsWith('DEF')?'MIDFIELD':'DEFENCE'}`);}}html+=`<div class="changeBox"><div class="changeTitle">HALF-TIME — POSITION CHANGES</div><div class="subNow">${swaps.join('<br>')}</div></div>`;}
+ else if(ch&&ch.type==='half'){html+=halfTimeSummaryHtml();}
  if(p.times.length){html+=`<div style="width:100%;font-size:12px;color:var(--muted);margin-top:8px"><b>Changes:</b> ${p.times.map(t=>fmt(t*60)).join(' · ')}</div>`;}html+=`<div style="width:100%;font-size:12px;color:var(--muted);margin-top:4px">${esc(p.note)}</div>`;el.innerHTML=html}
 function renderPitch(){const ps=presentPlayers(),m=currentRotation();document.getElementById('squadCount').textContent=ps.length+' present';const name=p=>p?esc(p.name):'—';const g=chosenRolePlayer('gk'),st=chosenRolePlayer('st');const slots=[['gk','GK',timer<1200?g:st],['ld','DEF L',m?.slots.DEF_L],['rd','DEF R',m?.slots.DEF_R],['lm','MID L',m?.slots.MID_L],['rm','MID R',m?.slots.MID_R],['st','ST',timer<1200?st:g]];document.getElementById('pitch').innerHTML=slots.map(s=>`<div class="pos ${s[0]}"><div class="dot">${name(s[2]).slice(0,1)}</div><small>${s[1]} · ${name(s[2])}</small></div>`).join('');updateRotationInfo()}
-function startTimer(){if(running||timer>=40*60)return;if(presentPlayers().length<6){alert('Select at least 6 players as attending before starting.');return}if(!validateRoles())return;recordAttendance();recordRoleAppearances();running=true;matchStarted=true;lastTick=performance.now();interval=setInterval(()=>{const now=performance.now();const delta=Math.max(0,(now-lastTick)/1000);lastTick=now;timer=Math.min(40*60,timer+delta);accrue(delta);updateTimerDisplay();renderPitch();if(timer>=40*60){pauseTimer();alert('Full time')}} ,200)}
-function pauseTimer(){if(!running)return;const now=performance.now();const delta=Math.max(0,(now-lastTick)/1000);timer=Math.min(40*60,timer+delta);accrue(delta);running=false;clearInterval(interval);interval=null;save();updateTimerDisplay();renderPitch();renderStats()}
+function startTimer(){if(running||timer>=40*60)return;if(presentPlayers().length<6){alert('Select at least 6 players as attending before starting.');return}if(!validateRoles())return;recordAttendance();recordRoleAppearances();running=true;matchStarted=true;lastTick=performance.now();interval=setInterval(()=>{const now=performance.now();const delta=Math.max(0,(now-lastTick)/1000);lastTick=now;advanceMatchClock(delta);updateTimerDisplay();renderPitch();if(timer>=40*60){pauseTimer();alert('Full time')}} ,200)}
+function pauseTimer(){if(!running)return;const now=performance.now();const delta=Math.max(0,(now-lastTick)/1000);advanceMatchClock(delta);running=false;clearInterval(interval);interval=null;save();updateTimerDisplay();renderPitch();renderStats()}
 function resetTimer(){if(running)pauseTimer();timer=0;attendanceRecorded=false;matchStarted=false;save();updateTimerDisplay();renderPitch()}
 function choosePlayer(label,cb){const names=squad().map((p,i)=>`${i+1}: ${p.name}`).join('\n');const x=prompt(label+'\n\n'+names);const i=parseInt(x,10)-1;if(i>=0&&i<squad().length)cb(squad()[i])}
 function goal(){choosePlayer('Goal by:',p=>{p.goals++;data.events.push('⚽ '+p.name+' goal');save();eventText();renderStats()})}
@@ -197,7 +228,7 @@ function renderPreview(){syncPreviewOptions();const t=Math.max(0,Math.min(2400,N
 if(ps.length<6){text='Select at least 6 attending players in Team and choose a starting goalkeeper and striker.';}
 else if(t===0){text='Starting lineup. Use “Next change” to move to the first scheduled substitution.';}
 else if(t===2400){text='Full-time. No further substitutions.';}
-else if(t===1200){text=`<div class="changeBox"><div class="changeTitle">HALF-TIME POSITION SWAP</div><div class="subNow">🧤 ${esc(g?.name||'GK')}: GK → ST<br>⚽ ${esc(st?.name||'Striker')}: ST → GK<br>Outfield players swap defence ↔ midfield.</div></div>`;}
+else if(t===1200){text=halfTimeSummaryHtml();}
 else {const prev=vals[Math.max(0,ix-1)];timer=Math.max(0,t-0.05);const before=currentRotation();timer=t;const after=currentRotation();const changes=changeBetween(before,after);if(changes.length){text='<div class="changeBox"><div class="changeTitle">SUBSTITUTIONS — '+fmt(t)+'</div><div class="changeGrid">'+changes.map(c=>`<div class="offBox">🔴 OFF<br>${esc(c.off.name)}<small>${slotRole(c.slot)}</small></div><div class="onBox">🟢 ON<br>${esc(c.on.name)}<small>${slotRole(c.slot)}</small></div>`).join('')+'</div></div>';}else{text='No outfield player change at this exact time. Check the half-time position swap or next scheduled event.';}}
 document.getElementById('previewSubs').innerHTML=text;const next=vals[ix+1];document.getElementById('previewNextInfo').textContent=next!=null?`Next scheduled step: ${next===1200?'Half-time':next===2400?'Full-time':fmt(next)}`:'End of match';timer=old}
 function renderStats(){document.getElementById('statsTable').innerHTML='<table><tr><th>Player</th><th>Attend</th><th>Min</th><th>Def min</th><th>Mid min</th><th>GK min</th><th>ST min</th><th>GK halves</th><th>ST halves</th><th>G</th><th>A</th><th>POTM</th></tr>'+squad().map(p=>`<tr><td>${esc(p.name)}</td><td>${p.att}</td><td>${p.mins.toFixed(1)}</td><td>${p.def.toFixed(1)}</td><td>${p.mid.toFixed(1)}</td><td>${p.gk.toFixed(1)}</td><td>${p.st.toFixed(1)}</td><td>${p.gkApps}</td><td>${p.stApps}</td><td>${p.goals}</td><td>${p.assists}</td><td>${p.potm}</td></tr>`).join('')+'</table>'}
@@ -208,5 +239,5 @@ function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileRe
 function init(){document.getElementById('teamName').value=data.team||'Juventus';document.getElementById('teamTitle').textContent=(data.team||'Juventus')+' · Minis';renderPlayers();buildNav();renderFixtures();renderAttendance();renderRoleChoices();renderMatchAttendance();renderStats();renderDrills();renderPitch();updateTimerDisplay();syncPreviewOptions();renderPreview();eventText();document.getElementById('nav-setup').classList.add('active')}
 init();
 </script>
-<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('service-worker.js?v=31').catch(()=>{}))}</script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('service-worker.js?v=33').catch(()=>{}))}</script>
 </body></html>
