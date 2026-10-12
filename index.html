@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b1d4e">
 <link rel="manifest" href="manifest.json">
-<title>Perrywoods FC Team Manager v38</title>
+<title>Perrywoods FC Team Manager v40</title>
 <style>
 :root{--g:#0b1d4e;--g2:#123a91;--bg:#f3f5fb;--card:#fff;--muted:#59657f;--line:#d9dfed;--accent:#ffcc00}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#18221d}
@@ -36,7 +36,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px;borde
 </style>
 </head>
 <body>
-<header><img class="crest" src="icon-192.png" alt="Perrywoods FC crest"><div class="brand"><h1>Perrywoods FC Team Manager</h1><div class="sub" id="teamTitle">Team setup · Minis</div><span class="versionTag">APP v38</span></div></header>
+<header><img class="crest" src="icon-192.png" alt="Perrywoods FC crest"><div class="brand"><h1>Perrywoods FC Team Manager</h1><div class="sub" id="teamTitle">Team setup · Minis</div><span class="versionTag">APP v40</span></div></header>
 <nav id="nav"></nav>
 <main>
 <section id="setup" class="page active">
@@ -44,6 +44,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px;borde
 <div class="card"><h2>Players A–H</h2><div id="players"></div></div>
 <div class="card"><div class="row"><h2>Step 1 · Match attendance</h2><span class="pill" id="attendanceCount">0 present</span></div><div class="small" style="margin-bottom:9px">Tick the players who are at this match. Attendance is recorded once when you start the match.</div><div id="attendance"></div><button class="secondary" style="margin-top:9px" onclick="markAllAttendance(true)">All present</button> <button class="secondary" style="margin-top:9px" onclick="markAllAttendance(false)">Clear</button></div>
 <div class="card"><h2>Step 2 · Goalkeeper & striker</h2><div class="small" style="margin-bottom:8px">After choosing attendance, select who starts in goal and striker. They automatically swap at half-time.</div><div class="grid"><label>First-half goalkeeper<select id="gkSelect" onchange="setRoleChoice('gk',this.value)"></select></label><label>First-half striker<select id="stSelect" onchange="setRoleChoice('st',this.value)"></select></label></div><div class="small" id="roleChoiceNote" style="margin-top:8px"></div></div>
+<div class="card"><h2>Step 3 · Choose starting outfield lineup</h2><div class="small" style="margin-bottom:10px">Choose who starts in each outfield position for each half. Only attending players who are not selected as goalkeeper or striker are available. Each player can occupy only one position per half.</div><div id="lineupChoices"></div><div class="small" id="lineupNote" style="margin-top:8px"></div></div>
 <div class="card"><button onclick="saveSetup()">Save team</button> <button class="secondary" onclick="exportData()">Export backup</button> <label class="btn secondary" style="display:inline-block">Import backup<input type="file" id="importFile" hidden accept=".json" onchange="importData(event)"></label></div>
 </section>
 
@@ -53,10 +54,10 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px;borde
 
 <section id="match" class="page">
 <div class="card"><div class="row"><div><h2 id="matchTitle">Match day</h2><div class="small" id="matchOpponent"></div></div><span class="pill" id="squadCount"></span></div>
-<div class="big" id="timer">20:00</div><div class="center"><button onclick="startTimer()" id="startBtn">Start</button> <button class="secondary" onclick="pauseTimer()">Pause</button> <button class="warn" onclick="resetTimer()">Reset</button></div></div>
+<div class="big" id="timer">00:00</div><div class="center"><button onclick="startTimer()" id="startBtn">Start</button> <button class="secondary" onclick="pauseTimer()">Pause</button> <button class="warn" onclick="resetTimer()">Reset</button></div><div class="center" style="margin-top:8px"><span class="small">Fast forward:</span> <button class="secondary" onclick="fastForward(60)">+1 min</button> <button class="secondary" onclick="fastForward(300)">+5 min</button> <button class="secondary" onclick="fastForwardToNext()">Next event</button></div></div>
 <div class="card"><div class="row"><h2>Current pitch</h2><span class="pill" id="periodLabel"></span></div><div class="pitch" id="pitch"></div><div class="subs" id="subInfo"></div></div>
 <div class="card"><div class="row"><h2>Attendance</h2><span class="pill" id="matchAttendanceCount">0 present</span></div><div id="matchAttendance"></div></div>
-<div class="card"><h2>Match events</h2><div class="grid3"><button onclick="goal()">⚽ Goal</button><button onclick="assist()">🅰️ Assist</button><button class="secondary" onclick="potm()">⭐ POTM</button></div><div id="events" class="small" style="margin-top:10px"></div></div>
+<div class="card"><h2>Score & match events</h2><div class="row" style="margin-bottom:10px"><div style="text-align:center;flex:1"><div class="small" id="homeScoreLabel">Home</div><div class="big" id="homeScore">0</div></div><div style="font-size:22px;font-weight:900">–</div><div style="text-align:center;flex:1"><div class="small" id="awayScoreLabel">Away</div><div class="big" id="awayScore">0</div></div></div><div class="grid"><button onclick="recordTeamGoal(true)">⚽ Goal for us</button><button class="warn" onclick="recordTeamGoal(false)">⚽ Goal against us</button></div><div class="grid3" style="margin-top:8px"><button onclick="goal()">Player goal</button><button onclick="assist()">Assist</button><button class="secondary" onclick="potm()">⭐ POTM</button></div><div id="events" class="small" style="margin-top:10px"></div></div>
 </section>
 
 <section id="subs" class="page">
@@ -115,27 +116,36 @@ let data = JSON.parse(localStorage.getItem("perrywoodsV24") || localStorage.getI
 data.players = (data.players||DEFAULT_PLAYERS).slice(0,8).map((p,i)=>Object.assign(DEFAULT_PLAYERS[i],p||{}));
 data.players.forEach(p=>{p.att=Number(p.att)||0;p.mins=Number(p.mins)||0;p.def=Number(p.def)||0;p.mid=Number(p.mid)||0;p.gk=Number(p.gk)||0;p.st=Number(p.st)||0;p.gkApps=Number(p.gkApps)||0;p.stApps=Number(p.stApps)||0;p.goals=Number(p.goals)||0;p.assists=Number(p.assists)||0;p.potm=Number(p.potm)||0;p.present=!!p.present});
 data.roles=data.roles||{gkFirst:"",stFirst:""};
+data.results=data.results||{};
+data.lineups=data.lineups||{first:{},second:{}};
 let timer=0, running=false, interval=null, lastTick=0, attendanceRecorded=false, matchStarted=false, roleAppsRecorded=false;
 const save=()=>localStorage.setItem("perrywoodsV24",JSON.stringify(data));
 function esc(s){return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll('"',"&quot;")}
 function squad(){return data.players.filter(p=>p.name.trim()).slice(0,8)}
 function presentPlayers(){return squad().filter(p=>p.present)}
 function buildNav(){document.getElementById("nav").innerHTML=["setup","fixtures","match","subs","preview","stats","training"].map((x,i)=>`<button onclick="show('${x}')" id="nav-${x}">${["Team","Fixtures","Match","Subs","Preview","Stats","Training"][i]}</button>`).join("")}
-function show(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));document.getElementById('nav-'+id)?.classList.add('active');if(id==='stats')renderStats();if(id==='match'){renderPitch();renderMatchAttendance();updateTimerDisplay()}if(id==='setup'){renderAttendance();renderRoleChoices()}if(id==='preview')renderPreview();if(id==='subs')renderSubList()}
+function show(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));document.getElementById('nav-'+id)?.classList.add('active');if(id==='stats')renderStats();if(id==='match'){renderPitch();renderMatchAttendance();updateTimerDisplay()}if(id==='setup'){renderAttendance();renderRoleChoices();renderLineupChoices()}if(id==='preview')renderPreview();if(id==='subs')renderSubList()}
 function renderPlayers(){document.getElementById('players').innerHTML=squad().map((p,i)=>`<div class="row" style="margin:6px 0"><b>${String.fromCharCode(65+i)}</b><input value="${esc(p.name)}" onchange="data.players[${i}].name=this.value.trim()||'${String.fromCharCode(65+i)}';save();renderAttendance();renderMatchAttendance();renderStats()"></div>`).join('')}
 function saveSetup(){data.team=document.getElementById('teamName').value.trim()||'Juventus';save();document.getElementById('teamTitle').textContent=data.team+' · Minis';renderFixtures();alert('Team saved')}
-function markAllAttendance(v){squad().forEach(p=>p.present=v);save();renderAttendance();renderMatchAttendance();}
-function renderAttendance(){const ps=squad();document.getElementById('attendance').innerHTML=ps.map((p,i)=>`<label style="display:inline-flex;align-items:center;gap:7px;margin:4px 8px 4px 0;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:${p.present?'#e9efeb':'#fff'}"><input type="checkbox" ${p.present?'checked':''} onchange="data.players[${i}].present=this.checked;save();renderAttendance();renderMatchAttendance();renderRoleChoices();renderPitch();updateRotationInfo();renderSubList()"><b>${esc(p.name)}</b></label>`).join('');document.getElementById('attendanceCount').textContent=ps.filter(p=>p.present).length+' present';renderRoleChoices()}
+function markAllAttendance(v){squad().forEach(p=>p.present=v);save();renderAttendance();renderMatchAttendance();renderLineupChoices()}
+function renderAttendance(){const ps=squad();document.getElementById('attendance').innerHTML=ps.map((p,i)=>`<label style="display:inline-flex;align-items:center;gap:7px;margin:4px 8px 4px 0;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:${p.present?'#e9efeb':'#fff'}"><input type="checkbox" ${p.present?'checked':''} onchange="data.players[${i}].present=this.checked;save();renderAttendance();renderMatchAttendance();renderRoleChoices();renderLineupChoices();renderPitch();updateRotationInfo();renderSubList()"><b>${esc(p.name)}</b></label>`).join('');document.getElementById('attendanceCount').textContent=ps.filter(p=>p.present).length+' present';renderRoleChoices();renderLineupChoices()}
 function renderMatchAttendance(){const ps=squad();document.getElementById('matchAttendance').innerHTML=ps.map((p,i)=>`<button class="${p.present?'':'secondary'}" style="margin:3px" onclick="toggleAttendance(${i})">${p.present?'✓ ':''}${esc(p.name)}</button>`).join('');document.getElementById('matchAttendanceCount').textContent=ps.filter(p=>p.present).length+' present'}
-function toggleAttendance(i){if(matchStarted)return;data.players[i].present=!data.players[i].present;save();renderAttendance();renderMatchAttendance();renderRoleChoices();renderPitch();updateRotationInfo();renderSubList()}
+function toggleAttendance(i){if(matchStarted)return;data.players[i].present=!data.players[i].present;save();renderAttendance();renderMatchAttendance();renderRoleChoices();renderLineupChoices();renderPitch();updateRotationInfo();renderSubList()}
 function renderRoleChoices(){const ps=presentPlayers();['gk','st'].forEach(role=>{const el=document.getElementById(role+'Select');if(!el)return;const old=data.roles[role+'First'];el.innerHTML='<option value="">Choose player…</option>'+ps.map(p=>`<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('');if(old&&ps.some(p=>p.name===old))el.value=old;});const g=data.roles.gkFirst,st=data.roles.stFirst;const note=document.getElementById('roleChoiceNote');if(note)note.textContent=(g&&st&&g!==st)?`${g} starts in goal and becomes striker at half-time. ${st} starts as striker and becomes goalkeeper.`:'Choose two different attending players. The same player cannot start in both roles.';}
-function setRoleChoice(role,value){data.roles[role+'First']=value; if(data.roles.gkFirst&&data.roles.gkFirst===data.roles.stFirst){alert('Choose two different players for goalkeeper and striker.');data.roles[role+'First']='';renderRoleChoices();return;}save();renderRoleChoices();renderPitch();updateRotationInfo();renderSubList()}
+function setRoleChoice(role,value){data.roles[role+'First']=value; if(data.roles.gkFirst&&data.roles.gkFirst===data.roles.stFirst){alert('Choose two different players for goalkeeper and striker.');data.roles[role+'First']='';renderRoleChoices();return;}save();renderRoleChoices();renderLineupChoices();renderPitch();updateRotationInfo();renderSubList()}
+const LINEUP_SLOTS=[['DEF_L','Defence · Left'],['DEF_R','Defence · Right'],['MID_L','Midfield · Left'],['MID_R','Midfield · Right']];
+function defaultLineup(half){const out=presentPlayers().filter(p=>p.name!==data.roles.gkFirst&&p.name!==data.roles.stFirst);const saved=data.lineups?.[half]||{};const result={};LINEUP_SLOTS.forEach(([slot],i)=>{const pick=saved[slot];result[slot]=(out.some(p=>p.name===pick)&&!Object.values(result).includes(pick))?pick:(out[i]?.name||'');});return result;}
+function renderLineupChoices(){const root=document.getElementById('lineupChoices');if(!root)return;const out=presentPlayers().filter(p=>p.name!==data.roles.gkFirst&&p.name!==data.roles.stFirst);if(out.length<4){root.innerHTML='<div class="notice">Mark at least 6 players as attending and choose different goalkeeper and striker players first. Four outfield players are needed.</div>';document.getElementById('lineupNote').textContent='';return;}let html='';for(const [half,label] of [['first','First half'],['second','Second half']]){const lineup=defaultLineup(half);html+=`<h3>${label}</h3><div class="grid">`;for(const [slot,title] of LINEUP_SLOTS){html+=`<label>${title}<select onchange="setLineupChoice('${half}','${slot}',this.value)"><option value="">Choose player…</option>${out.map(p=>`<option value="${esc(p.name)}" ${lineup[slot]===p.name?'selected':''}>${esc(p.name)}</option>`).join('')}</select></label>`;}html+='</div>';}root.innerHTML=html;const note=document.getElementById('lineupNote');note.textContent=out.length===4?'All four available outfield players will start; substitutions are not needed.':'Pick four different outfield players for each half. The remaining player(s) start on the bench.';}
+function setLineupChoice(half,slot,value){data.lineups=data.lineups||{first:{},second:{}};const line=defaultLineup(half);line[slot]=value;const vals=LINEUP_SLOTS.map(([k])=>line[k]).filter(Boolean);if(new Set(vals).size!==vals.length){alert('Choose each player only once in this half.');renderLineupChoices();return;}data.lineups[half]=line;save();renderLineupChoices();renderPitch();updateRotationInfo();renderSubList();}
+function selectedLineup(half,out){const chosen=defaultLineup(half);const names=LINEUP_SLOTS.map(([slot])=>chosen[slot]);if(names.some(n=>!n)||new Set(names).size!==4||names.some(n=>!out.some(p=>p.name===n)))return null;return Object.fromEntries(LINEUP_SLOTS.map(([slot],i)=>[slot,out.find(p=>p.name===names[i])]));}
 function recordAttendance(){if(attendanceRecorded)return;presentPlayers().forEach(p=>p.att++);attendanceRecorded=true;save();renderStats()}
 function chosenRolePlayer(role){return presentPlayers().find(p=>p.name===data.roles[role+'First'])||null}
 function validateRoles(){const g=chosenRolePlayer('gk'),st=chosenRolePlayer('st');if(!g||!st||g===st){alert('Before starting, choose two different attending players for first-half goalkeeper and striker in Team.');show('setup');return false;}return true}
 function recordRoleAppearances(){if(roleAppsRecorded)return;const g=chosenRolePlayer('gk'),st=chosenRolePlayer('st');if(!g||!st||g===st)return;g.gkApps++;g.stApps++;st.stApps++;st.gkApps++;roleAppsRecorded=true;save();renderStats()}
-function renderFixtures(){const team=(data.team||'Juventus').toLowerCase();const rows=FIXTURES.filter(f=>f[2].toLowerCase()===team||f[3].toLowerCase()===team);document.getElementById('fixtureCount').textContent=rows.length+' matches';document.getElementById('fixtureList').innerHTML=rows.map(f=>{const opp=f[2].toLowerCase()===team?f[3]:f[2];return `<div class="fixture"><div class="row"><b>${f[2]} vs ${f[3]}</b><span>${f[1]}</span></div><div class="small">${f[0]} · Opponent: ${opp}<button class="secondary" style="float:right;padding:5px 8px" onclick='selectFixture(${JSON.stringify(f)})'>Select</button></div></div>`}).join('')}
-function selectFixture(f){if(running)pauseTimer();roleAppsRecorded=false;data.fixture=f;resetTimer();document.getElementById('matchTitle').textContent=f[2]+' vs '+f[3];document.getElementById('matchOpponent').textContent=f[0]+' · '+f[1];show('match')}
+function fixtureKey(f){return [f[0],f[1],f[2],f[3]].join('|')}
+function fixtureResult(f){return data.results?.[fixtureKey(f)]||null}
+function renderFixtures(){const team=(data.team||'Juventus').toLowerCase();const rows=FIXTURES.filter(f=>f[2].toLowerCase()===team||f[3].toLowerCase()===team);document.getElementById('fixtureCount').textContent=rows.length+' matches';document.getElementById('fixtureList').innerHTML=rows.map(f=>{const opp=f[2].toLowerCase()===team?f[3]:f[2],r=fixtureResult(f),score=r&&r.completed?`<span class="pill">${r.homeScore} – ${r.awayScore}</span>`:'';return `<div class="fixture"><div class="row"><b>${f[2]} vs ${f[3]}</b><span>${f[1]}</span></div><div class="row"><span class="small">${f[0]} · Opponent: ${opp}</span>${score}</div><div style="text-align:right;margin-top:5px"><button class="secondary" style="padding:5px 8px" onclick='selectFixture(${JSON.stringify(f)})'>${r&&r.completed?'View / edit match':'Select'}</button></div></div>`}).join('')}
+function selectFixture(f){if(running)pauseTimer();roleAppsRecorded=false;fullTimeHandled=false;data.fixture=f;resetTimer();document.getElementById('matchTitle').textContent=f[2]+' vs '+f[3];document.getElementById('matchOpponent').textContent=f[0]+' · '+f[1];renderScore();show('match')}
 function plan(){const n=presentPlayers().length;if(n<6)return {n,times:[],note:'Need at least 6 players'};if(n===6)return {n,times:[20],note:'No substitutions during either half. Outfield players swap defence/midfield at half-time. GK and striker swap.'};if(n===7)return {n,times:[4,8,12,16,20,24,28,32,36],note:'One outfield player rotates every 4 minutes. At half-time the lines swap and one planned outfield substitution keeps the rotation continuous. Each outfield player gets 16 minutes in defence and 16 in midfield over 40 minutes.'};return {n,times:[6+2/3,13+1/3,20,26+2/3,33+1/3],note:'Two outfield players rotate together every 6:40. The same players remain on at half-time while defence/midfield swap. Each outfield player gets 13 minutes 20 seconds in defence and 13 minutes 20 seconds in midfield over 40 minutes.'}}
 function roleSchedule(half=0){
  const ps=presentPlayers(), n=ps.length;
@@ -154,31 +164,26 @@ function roleSchedule(half=0){
    }
    return schedules;
  };
- const slot=(a,b,c,d)=>({DEF_L:out[a],DEF_R:out[b],MID_L:out[c],MID_R:out[d]});
- if(n===6){return [make([],slot(0,1,2,3))];}
+ const lineup=selectedLineup(half,out);
+ const fallback={DEF_L:out[0],DEF_R:out[1],MID_L:out[2],MID_R:out[3]};
+ const initial=lineup||fallback;
+ const onPitch=Object.values(initial), resting=out.filter(p=>!onPitch.includes(p));
+ if(n===6){return [make([],initial)];}
  if(n===7){
-   // Five 4-minute blocks. Everyone rests once per half. The half-time schedule
-   // starts from the actual final first-half lineup, swaps lines, and makes one
-   // explicit substitution so the on-pitch group and rotation remain consistent.
-   if(half===0){
-     return build([[out[0]],[out[1]],[out[2]],[out[3]],[out[4]]],slot(1,4,2,3));
-   }
-   return build([[out[0]],[out[3]],[out[2]],[out[1]],[out[4]]],slot(1,2,4,3));
+   const restOrder=[...resting,...out.filter(p=>!resting.includes(p))];
+   return build(restOrder.map(p=>[p]),initial);
  }
- // Six outfield players, three 6m40s blocks. Both halves keep the same players
- // on the pitch at half-time; the second-half order starts with the pair resting
- // at the end of the first half, after the defence/midfield swap.
- if(half===0){
-   return build([[out[0],out[2]],[out[1],out[3]],[out[4],out[5]]],slot(1,3,4,5));
- }
- return build([[out[4],out[5]],[out[1],out[3]],[out[0],out[2]]],slot(1,3,0,2));
+ // 8 attending: the initial two bench players rest first; then the starting
+ // defenders rest together, followed by the starting midfielders. Each player
+ // rests once per half and replacements take the exact vacated positions.
+ const groups=[resting, [initial.DEF_L,initial.DEF_R], [initial.MID_L,initial.MID_R]];
+ return build(groups,initial);
 }
 function currentRotation(){
  const ps=presentPlayers(),n=ps.length;if(n<6)return null;
  const half=timer<1200?0:1, elapsed=timer<1200?timer:(timer-1200);
  let idx=0;if(n===7)idx=Math.min(4,Math.floor(elapsed/240));else if(n===8)idx=Math.min(2,Math.floor(elapsed/(1200/3)));
  const schedules=roleSchedule(half);let s=schedules[idx];
- if(n===6&&half===1){s={rest:s.rest.slice(),slots:Object.fromEntries(Object.entries(s.slots).map(([k,p])=>{const swap={DEF_L:'MID_L',DEF_R:'MID_R',MID_L:'DEF_L',MID_R:'DEF_R'};return [swap[k],p]}))};}
  return s;
 }
 function substitutionCardsHtml(changes,title='SUBSTITUTIONS'){
@@ -249,9 +254,15 @@ function pitchSwapMarkers(){
 }
 function pitchSwapTag(mark){if(!mark)return '';return `<span class="swapTag"><span class="off">🔴 OFF ${esc(mark.off.name)}</span><br>↓<br><span class="on">🟢 ON ${esc(mark.on.name)}</span></span>`}
 function renderPitch(){const ps=presentPlayers(),m=currentRotation();document.getElementById('squadCount').textContent=ps.length+' present';const name=p=>p?esc(p.name):'—';const g=chosenRolePlayer('gk'),st=chosenRolePlayer('st'),marks=pitchSwapMarkers();const slots=[['gk','GK',timer<1200?g:st],['ld','DEF L',m?.slots.DEF_L,'DEF_L'],['rd','DEF R',m?.slots.DEF_R,'DEF_R'],['lm','MID L',m?.slots.MID_L,'MID_L'],['rm','MID R',m?.slots.MID_R,'MID_R'],['st','ST',timer<1200?st:g]];document.getElementById('pitch').innerHTML=slots.map(s=>{const mark=s[3]?marks.slots[s[3]]:null;return `<div class="pos ${s[0]} ${mark?'swapTarget':''}"><div class="dot">${name(s[2]).slice(0,1)}</div><small>${s[1]} · ${name(s[2])}</small>${pitchSwapTag(mark)}</div>`}).join('')+(marks.status?`<div class="swapLegend"><span class="live">${marks.status}</span><span>Yellow ring = position involved</span></div>`:'');updateRotationInfo()}
-function startTimer(){if(running||timer>=40*60)return;if(presentPlayers().length<6){alert('Select at least 6 players as attending before starting.');return}if(!validateRoles())return;recordAttendance();recordRoleAppearances();running=true;matchStarted=true;lastTick=performance.now();interval=setInterval(()=>{const now=performance.now();const delta=Math.max(0,(now-lastTick)/1000);lastTick=now;advanceMatchClock(delta);updateTimerDisplay();renderPitch();if(timer>=40*60){pauseTimer();alert('Full time')}} ,200)}
+function startTimer(){if(running||timer>=40*60)return;if(presentPlayers().length<6){alert('Select at least 6 players as attending before starting.');return}if(!validateRoles())return;recordAttendance();recordRoleAppearances();running=true;matchStarted=true;lastTick=performance.now();interval=setInterval(()=>{const now=performance.now();const delta=Math.max(0,(now-lastTick)/1000);lastTick=now;advanceMatchClock(delta);updateTimerDisplay();renderPitch();if(timer>=40*60){pauseTimer();finishMatch()}},200)}
+function fastForward(seconds){if(running)pauseTimer();if(timer>=2400)return;if(presentPlayers().length<6||!validateRoles())return;recordAttendance();recordRoleAppearances();matchStarted=true;advanceMatchClock(Math.min(seconds,2400-timer));updateTimerDisplay();renderPitch();save();if(timer>=2400)finishMatch()}
+function fastForwardToNext(){if(running)pauseTimer();const next=plan().times.map(x=>Math.round(x*60)).find(t=>t>timer+0.1);fastForward(next==null?2400-timer:next-timer)}
 function pauseTimer(){if(!running)return;const now=performance.now();const delta=Math.max(0,(now-lastTick)/1000);advanceMatchClock(delta);running=false;clearInterval(interval);interval=null;save();updateTimerDisplay();renderPitch();renderStats()}
-function resetTimer(){if(running)pauseTimer();timer=0;attendanceRecorded=false;matchStarted=false;save();updateTimerDisplay();renderPitch()}
+function resetTimer(){if(running)pauseTimer();if(timer>=2400&&!confirm('Reset the match clock? The saved fixture score will remain.'))return;timer=0;attendanceRecorded=false;matchStarted=false;fullTimeHandled=false;save();updateTimerDisplay();renderPitch()}
+let fullTimeHandled=false;
+function renderScore(){const f=data.fixture;if(!f)return;const r=fixtureResult(f)||{homeScore:0,awayScore:0};document.getElementById('homeScoreLabel').textContent=f[2];document.getElementById('awayScoreLabel').textContent=f[3];document.getElementById('homeScore').textContent=r.homeScore||0;document.getElementById('awayScore').textContent=r.awayScore||0}
+function recordTeamGoal(forUs){if(!data.fixture){alert('Select a fixture first.');return}const f=data.fixture,key=fixtureKey(f);data.results=data.results||{};const r=data.results[key]||{homeScore:0,awayScore:0,completed:false};const team=(data.team||'Juventus').toLowerCase();const teamIsHome=f[2].toLowerCase()===team;if(forUs){if(teamIsHome)r.homeScore++;else r.awayScore++;data.events.push('⚽ Goal for '+data.team+' ('+r.homeScore+'–'+r.awayScore+')')}else{if(teamIsHome)r.awayScore++;else r.homeScore++;data.events.push('⚽ Goal against '+data.team+' ('+r.homeScore+'–'+r.awayScore+')')}data.results[key]=r;save();renderScore();renderFixtures();eventText()}
+function finishMatch(){if(fullTimeHandled)return;fullTimeHandled=true;running=false;if(interval){clearInterval(interval);interval=null}timer=2400;updateTimerDisplay();renderPitch();if(data.fixture){const key=fixtureKey(data.fixture);data.results=data.results||{};const r=data.results[key]||{homeScore:0,awayScore:0};r.completed=true;r.completedAt=new Date().toISOString();data.results[key]=r;save();renderScore();renderFixtures()}alert('Full time! Select your Player of the Match.');choosePlayer('Player of the Match — enter the number beside the player:',p=>{p.potm++;if(data.fixture){const r=data.results[fixtureKey(data.fixture)];if(r)r.potm=p.name;}data.events.push('⭐ '+p.name+' Player of the Match');save();eventText();renderStats();renderFixtures()});show('match')}
 function choosePlayer(label,cb){const names=squad().map((p,i)=>`${i+1}: ${p.name}`).join('\n');const x=prompt(label+'\n\n'+names);const i=parseInt(x,10)-1;if(i>=0&&i<squad().length)cb(squad()[i])}
 function goal(){choosePlayer('Goal by:',p=>{p.goals++;data.events.push('⚽ '+p.name+' goal');save();eventText();renderStats()})}
 function assist(){choosePlayer('Assist by:',p=>{p.assists++;data.events.push('🅰️ '+p.name+' assist');save();eventText();renderStats()})}
@@ -272,8 +283,8 @@ function addDrill(){const a=document.getElementById('drillTitle').value.trim(),b
 function renderDrills(){document.getElementById('drills').innerHTML=(data.drills||[]).map(d=>`<div class="fixture"><b>${esc(d.a)}</b><div class="small">${esc(d.b)}</div></div>`).join('')}
 function exportData(){const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='perrywoods-backup.json';a.click()}
 function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{data=JSON.parse(r.result);save();location.reload()}catch{alert('Invalid backup')}};r.readAsText(f)}
-function init(){document.getElementById('teamName').value=data.team||'Juventus';document.getElementById('teamTitle').textContent=(data.team||'Juventus')+' · Minis';renderPlayers();buildNav();renderFixtures();renderAttendance();renderRoleChoices();renderMatchAttendance();renderStats();renderDrills();renderPitch();updateTimerDisplay();syncPreviewOptions();renderPreview();eventText();document.getElementById('nav-setup').classList.add('active')}
+function init(){document.getElementById('teamName').value=data.team||'Juventus';document.getElementById('teamTitle').textContent=(data.team||'Juventus')+' · Minis';renderPlayers();buildNav();renderFixtures();renderAttendance();renderRoleChoices();renderMatchAttendance();renderStats();renderDrills();renderPitch();renderScore();updateTimerDisplay();syncPreviewOptions();renderPreview();eventText();document.getElementById('nav-setup').classList.add('active')}
 init();
 </script>
-<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('service-worker.js?v=34').catch(()=>{}))}</script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('service-worker.js?v=40').catch(()=>{}))}</script>
 </body></html>
