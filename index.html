@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b1d4e">
 <link rel="manifest" href="manifest.json">
-<title>Perrywoods FC Team Manager v41</title>
+<title>Perrywoods FC Team Manager v42</title>
 <style>
 :root{--g:#0b1d4e;--g2:#123a91;--bg:#f3f5fb;--card:#fff;--muted:#59657f;--line:#d9dfed;--accent:#ffcc00}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#18221d}
@@ -27,7 +27,7 @@ input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);borde
 .pitch:before{content:"";position:absolute;inset:12px;border:2px solid #ffffff88;border-radius:10px;pointer-events:none}
 .pos{position:absolute;transform:translate(-50%,-50%);text-align:center;width:95px}.pos .dot{background:#fff;color:var(--g);border-radius:50%;width:40px;height:40px;display:grid;place-items:center;margin:auto;font-weight:800}.pos small{display:block;margin-top:3px;font-weight:700;text-shadow:0 1px 2px #000}
 .pos.swapTarget .dot{outline:4px solid #ffcc00;box-shadow:0 0 0 7px #0b1d4eaa}.swapTag{display:block;margin:3px auto 0;max-width:110px;padding:3px 4px;border-radius:6px;background:#fff8d8;color:#0b1d4e;font-size:8px;font-weight:1000;line-height:1.15;text-shadow:none;box-shadow:0 1px 3px #0005}.swapTag .off{color:#b71c1c}.swapTag .on{color:#12652d}.swapLegend{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin:7px auto 0;font-size:11px}.swapLegend span{padding:5px 7px;border-radius:7px;background:#fff8d8;color:#0b1d4e;font-weight:900}.swapLegend .live{background:#0b1d4e;color:#fff}
-.gk{left:50%;top:88%}.ld{left:32%;top:29%}.rd{left:68%;top:29%}.lm{left:32%;top:62%}.rm{left:68%;top:62%}.st{left:50%;top:8%}
+.gk{left:50%;top:88%}.ld{left:32%;top:62%}.rd{left:68%;top:62%}.lm{left:32%;top:29%}.rm{left:68%;top:29%}.st{left:50%;top:8%}
 .subs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.subchip{background:#eef3f0;border:1px solid var(--line);padding:8px 10px;border-radius:9px;font-size:12px}.changeBox{margin-top:10px;padding:12px;border-radius:14px;border:2px solid #222;background:#fff;width:100%;flex:1 0 100%;color:#18221d}.changeTitle{font-size:18px;font-weight:900;margin-bottom:8px}.changeGrid{display:grid;grid-template-columns:minmax(0,1fr);gap:9px}.changePair{display:grid;grid-template-columns:minmax(0,1fr) 28px minmax(0,1fr);align-items:stretch;gap:5px}.offBox,.onBox{padding:11px 9px;border-radius:10px;font-size:14px;font-weight:900;line-height:1.25;overflow-wrap:anywhere}.offBox{background:#ffe2e2;border:2px solid #c62828;color:#7f1111}.onBox{background:#dcf8e3;border:2px solid #167536;color:#105522}.offBox small,.onBox small{display:block;font-weight:700;font-size:11px;margin-top:5px}.pairArrow{display:grid;place-items:center;font-size:21px;font-weight:1000;color:#0b1d4e}.instructionLabel{display:block;font-size:10px;letter-spacing:.6px;margin-bottom:4px}.halfLine{padding:6px 0;border-bottom:1px solid #d9dfed;font-size:13px}.halfLine:last-child{border-bottom:0}.nextLarge{font-size:22px;font-weight:900;margin-top:6px}.subNow{background:#111;color:#fff;padding:12px;border-radius:12px;margin-top:10px}.subNow b{font-size:16px}
 .big{font-size:32px;font-weight:900;text-align:center;margin:2px 0}.previewControls{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}.previewControls button{padding:9px 7px}.previewLayout{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}.previewCard{padding:10px;margin-bottom:8px}.previewCard h2{margin-bottom:6px}.previewChange{font-size:13px;line-height:1.35;color:#18221d}.previewChange .changeBox{margin-top:5px;padding:8px}.previewChange .changeTitle{font-size:14px;margin-bottom:5px}.previewChange .offBox,.previewChange .onBox{padding:7px;font-size:13px}.center{text-align:center}
 table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}th{color:var(--muted)}.lineupTableWrap{width:100%;overflow-x:auto}.lineupTable{min-width:520px;table-layout:fixed}.lineupTable th:first-child,.lineupTable td:first-child{width:100px}.lineupTable th:nth-child(2),.lineupTable th:nth-child(3){width:210px}.lineupTable select{min-width:0;padding:8px 5px;font-size:12px}
@@ -36,7 +36,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px;borde
 </style>
 </head>
 <body>
-<header><img class="crest" src="icon-192.png" alt="Perrywoods FC crest"><div class="brand"><h1>Perrywoods FC Team Manager</h1><div class="sub" id="teamTitle">Team setup · Minis</div><span class="versionTag">APP v41</span></div></header>
+<header><img class="crest" src="icon-192.png" alt="Perrywoods FC crest"><div class="brand"><h1>Perrywoods FC Team Manager</h1><div class="sub" id="teamTitle">Team setup · Minis</div><span class="versionTag">APP v42</span></div></header>
 <nav id="nav"></nav>
 <main>
 <section id="setup" class="page active">
