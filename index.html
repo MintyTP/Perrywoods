@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b1d4e">
 <link rel="manifest" href="manifest.json">
-<title>Perrywoods FC Team Manager v43</title>
+<title>Perrywoods FC Team Manager v44</title>
 <style>
 :root{--g:#0b1d4e;--g2:#123a91;--bg:#f3f5fb;--card:#fff;--muted:#59657f;--line:#d9dfed;--accent:#ffcc00}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#18221d}
@@ -36,7 +36,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px;borde
 </style>
 </head>
 <body>
-<header><img class="crest" src="icon-192.png" alt="Perrywoods FC crest"><div class="brand"><h1>Perrywoods FC Team Manager</h1><div class="sub" id="teamTitle">Team setup · Minis</div><span class="versionTag">APP v43</span></div></header>
+<header><img class="crest" src="icon-192.png" alt="Perrywoods FC crest"><div class="brand"><h1>Perrywoods FC Team Manager</h1><div class="sub" id="teamTitle">Team setup · Minis</div><span class="versionTag">APP v44</span></div></header>
 <nav id="nav"></nav>
 <main>
 <section id="setup" class="page active">
@@ -180,60 +180,70 @@ function roleSchedule(half=0){
  if(n<6)return [];
  const g=chosenRolePlayer('gk'), st=chosenRolePlayer('st');
  const out=ps.filter(p=>p!==g&&p!==st);
- const make=(rest, slots)=>({rest:Array.isArray(rest)?rest:[rest],slots:{...slots}});
- const build=(restGroups, initialSlots, swapLineOnReturn=false)=>{
-   const schedules=[];let slots={...initialSlots};
-   // Remember each player's most recent line. For the 7-player rotation,
-   // a player returning from the bench must return in the opposite line,
-   // while keeping the same left/right side. The player displaced from that
-   // target slot fills the position vacated by the player going to the bench.
-   const lastRole={};
-   for(const [slot,p] of Object.entries(slots)) if(p) lastRole[p.name]=slot;
-   schedules.push(make(restGroups[0],slots));
-   for(let i=1;i<restGroups.length;i++){
-     const nextRest=restGroups[i], incoming=restGroups[i-1].slice(), nextSlots={...slots};
-     const vacated=Object.keys(slots).filter(k=>nextRest.includes(slots[k]));
-     if(swapLineOnReturn && incoming.length===1 && vacated.length===1){
-       const inPlayer=incoming[0], outSlot=vacated[0];
-       const prior=lastRole[inPlayer.name];
-       const side=prior ? prior.split('_')[1] : outSlot.split('_')[1];
-       const priorLine=prior ? prior.split('_')[0] : (outSlot.startsWith('DEF')?'MID':'DEF');
-       const desiredLine=prior ? (priorLine==='DEF'?'MID':'DEF') : (outSlot.startsWith('DEF')?'MID':'DEF');
-       const target=`${desiredLine}_${side}`;
-       const occupant=slots[target];
-       if(target!==outSlot && occupant && !nextRest.includes(occupant)){
-         nextSlots[target]=inPlayer;
-         nextSlots[outSlot]=occupant;
-         lastRole[inPlayer.name]=target;
-         lastRole[occupant.name]=outSlot;
-       } else {
-         // If the outgoing player occupies the ideal opposite-line slot,
-         // use the vacated slot rather than disturb an unrelated assignment.
-         nextSlots[outSlot]=inPlayer;
-         lastRole[inPlayer.name]=outSlot;
-       }
-     } else {
-       vacated.forEach((k,j)=>{nextSlots[k]=incoming[j]; if(incoming[j])lastRole[incoming[j].name]=k;});
-     }
-     for(const k of vacated){const leaving=slots[k];if(leaving)lastRole[leaving.name]=k;}
-     slots=nextSlots;schedules.push(make(nextRest,slots));
-   }
-   return schedules;
- };
+ const make=(rest,slots)=>({rest:Array.isArray(rest)?rest:[rest],slots:{...slots}});
  const lineup=selectedLineup(half,out);
  const fallback={DEF_L:out[0],DEF_R:out[1],MID_L:out[2],MID_R:out[3]};
- const initial=lineup||fallback;
+ const initial={...(lineup||fallback)};
  const onPitch=Object.values(initial), resting=out.filter(p=>!onPitch.includes(p));
- if(n===6){return [make([],initial)];}
+ if(n===6)return [make([],initial)];
  if(n===7){
-   const restOrder=[...resting,...out.filter(p=>!resting.includes(p))];
-   return build(restOrder.map(p=>[p]),initial,true);
+   // Exactly one substitute is available. At each 4-minute boundary the
+   // current bench player enters ONE slot in the opposite line to the line
+   // they last played; the occupant of that slot becomes the new substitute.
+   // No other player on the pitch changes position. Backtracking chooses a
+   // route where each of the five outfield players rests once per half.
+   const initialBench=resting[0];
+   if(!initialBench)return [make([],initial)];
+   const initialLast={};
+   for(const [slot,p] of Object.entries(initial)) if(p) initialLast[p.name]=slot;
+   const slotsOrder=['DEF_L','DEF_R','MID_L','MID_R'];
+   function search(slots,bench,lastRole,rested,steps){
+     if(steps.length===4)return {steps,slots,bench,lastRole,rested};
+     const prior=lastRole[bench.name];
+     // The first-ever entry starts in midfield; after that, alternate lines.
+     const desiredLine=prior ? (prior.startsWith('DEF_')?'MID':'DEF') : 'MID';
+     const preferredSide=prior ? prior.split('_')[1] : 'L';
+     let candidates=slotsOrder.filter(k=>k.startsWith(desiredLine+'_') && slots[k] && !rested.has(slots[k].name));
+     candidates.sort((a,b)=>((a.endsWith(preferredSide)?0:1)-(b.endsWith(preferredSide)?0:1)));
+     for(const target of candidates){
+       const outgoing=slots[target];
+       const nextSlots={...slots,[target]:bench};
+       const nextLast={...lastRole,[bench.name]:target,[outgoing.name]:target};
+       const nextRested=new Set(rested);nextRested.add(outgoing.name);
+       const nextSteps=[...steps,{rest:outgoing,slots:{...nextSlots}}];
+       const result=search(nextSlots,outgoing,nextLast,nextRested,nextSteps);
+       if(result)return result;
+     }
+     return null;
+   }
+   const found=search(initial,initialBench,initialLast,new Set([initialBench.name]),[]);
+   if(!found){
+     // Safe fallback still obeys opposite-line entry and changes only one slot.
+     let slots={...initial},bench=initialBench,last={...initialLast};
+     const result=[make([bench],slots)];
+     for(let i=0;i<4;i++){
+       const prior=last[bench.name], line=prior?(prior.startsWith('DEF_')?'MID':'DEF'):'MID';
+       const target=slotsOrder.find(k=>k.startsWith(line+'_')&&slots[k]);
+       const outgoing=slots[target];slots={...slots,[target]:bench};last[bench.name]=target;last[outgoing.name]=target;bench=outgoing;result.push(make([bench],slots));
+     }
+     return result;
+   }
+   const result=[make([initialBench],initial)];
+   found.steps.forEach(step=>result.push(make([step.rest],step.slots)));
+   return result;
  }
- // 8 attending: the initial two bench players rest first; then the starting
- // defenders rest together, followed by the starting midfielders. Each player
- // rests once per half and replacements take the exact vacated positions.
+ // Eight attending: two substitutes rotate together. Keep the established
+ // balanced blocks; the incoming pair replace the pair scheduled to rest.
  const groups=[resting, [initial.DEF_L,initial.DEF_R], [initial.MID_L,initial.MID_R]];
- return build(groups,initial);
+ const schedules=[];let slots={...initial};
+ schedules.push(make(groups[0],slots));
+ for(let i=1;i<groups.length;i++){
+   const incoming=groups[i-1], nextRest=groups[i], nextSlots={...slots};
+   const vacated=Object.keys(slots).filter(k=>nextRest.includes(slots[k]));
+   vacated.forEach((k,j)=>{nextSlots[k]=incoming[j];});
+   slots=nextSlots;schedules.push(make(nextRest,slots));
+ }
+ return schedules;
 }
 function currentRotation(){
  const ps=presentPlayers(),n=ps.length;if(n<6)return null;
@@ -341,5 +351,5 @@ function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileRe
 function init(){document.getElementById('teamName').value=data.team||'Juventus';document.getElementById('teamTitle').textContent=(data.team||'Juventus')+' · Minis';renderPlayers();buildNav();renderFixtures();renderAttendance();renderRoleChoices();renderMatchAttendance();renderStats();renderDrills();renderPitch();renderScore();updateTimerDisplay();syncPreviewOptions();renderPreview();eventText();document.getElementById('nav-setup').classList.add('active')}
 init();
 </script>
-<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('service-worker.js?v=41').catch(()=>{}))}</script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('service-worker.js?v=44').catch(()=>{}))}</script>
 </body></html>
