@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b1d4e">
 <link rel="manifest" href="manifest.json">
-<title>Perrywoods FC Team Manager v44</title>
+<title>Perrywoods FC Team Manager v46</title>
 <style>
 :root{--g:#0b1d4e;--g2:#123a91;--bg:#f3f5fb;--card:#fff;--muted:#59657f;--line:#d9dfed;--accent:#ffcc00}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#18221d}
@@ -36,7 +36,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px;borde
 </style>
 </head>
 <body>
-<header><img class="crest" src="icon-192.png" alt="Perrywoods FC crest"><div class="brand"><h1>Perrywoods FC Team Manager</h1><div class="sub" id="teamTitle">Team setup · Minis</div><span class="versionTag">APP v44</span></div></header>
+<header><img class="crest" src="icon-192.png" alt="Perrywoods FC crest"><div class="brand"><h1>Perrywoods FC Team Manager</h1><div class="sub" id="teamTitle">Team setup · Minis</div><span class="versionTag">APP v46</span></div></header>
 <nav id="nav"></nav>
 <main>
 <section id="setup" class="page active">
@@ -53,7 +53,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px;borde
 </section>
 
 <section id="match" class="page">
-<div class="card"><div class="row"><div><h2 id="matchTitle">Match day</h2><div class="small" id="matchOpponent"></div></div><span class="pill" id="squadCount"></span></div>
+<div class="card"><div class="small" style="margin-bottom:8px">Select a fixture first, then prepare its team sheet in the Team tab.</div><div class="row"><div><h2 id="matchTitle">Match day</h2><div class="small" id="matchOpponent"></div></div><span class="pill" id="squadCount"></span></div>
 <div class="big" id="timer">00:00</div><div class="center"><button onclick="startTimer()" id="startBtn">Start</button> <button class="secondary" onclick="pauseTimer()">Pause</button> <button class="warn" onclick="resetTimer()">Reset</button></div><div class="center" style="margin-top:8px"><span class="small">Fast forward:</span> <button class="secondary" onclick="fastForward(60)">+1 min</button> <button class="secondary" onclick="fastForward(300)">+5 min</button> <button class="secondary" onclick="fastForwardToNext()">Next event</button></div></div>
 <div class="card"><div class="row"><h2>Current pitch</h2><span class="pill" id="periodLabel"></span></div><div class="pitch" id="pitch"></div><div class="subs" id="subInfo"></div></div>
 <div class="card"><div class="row"><h2>Attendance</h2><span class="pill" id="matchAttendanceCount">0 present</span></div><div id="matchAttendance"></div></div>
@@ -118,15 +118,26 @@ data.players.forEach(p=>{p.att=Number(p.att)||0;p.mins=Number(p.mins)||0;p.def=N
 data.roles=data.roles||{gkFirst:"",stFirst:""};
 data.results=data.results||{};
 data.lineups=data.lineups||{first:{},second:{}};
-let timer=0, running=false, interval=null, lastTick=0, attendanceRecorded=false, matchStarted=false, roleAppsRecorded=false;
-const save=()=>localStorage.setItem("perrywoodsV24",JSON.stringify(data));
+data.fixtureSetups=data.fixtureSetups||{};
+let loadingFixtureSetup=false;
+let timer=0, running=false, interval=null, lastTick=0, attendanceRecorded=false, matchStarted=false, roleAppsRecorded=false, wakeLock=null;
+// Persist a wall-clock anchor so the match can recover if the browser is suspended or closed.
+function persistMatchRuntime(){data.matchRuntime={timer:timer,running:!!running,wallTime:Date.now(),fixtureKey:data.fixture?fixtureKey(data.fixture):null,attendanceRecorded:!!attendanceRecorded,matchStarted:!!matchStarted,roleAppsRecorded:!!roleAppsRecorded};}
+function save(){
+ if(data.fixture && !loadingFixtureSetup){
+  data.fixtureSetups=data.fixtureSetups||{};
+  data.fixtureSetups[fixtureKey(data.fixture)]={attendance:squad().filter(p=>p.present).map(p=>p.name),roles:{...data.roles},lineups:{first:{...(data.lineups.first||{})},second:{...(data.lineups.second||{})}}};
+ }
+ persistMatchRuntime();
+ localStorage.setItem("perrywoodsV24",JSON.stringify(data));
+}
 function esc(s){return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll('"',"&quot;")}
 function squad(){return data.players.filter(p=>p.name.trim()).slice(0,8)}
 function presentPlayers(){return squad().filter(p=>p.present)}
-function buildNav(){document.getElementById("nav").innerHTML=["setup","fixtures","match","subs","preview","stats","training"].map((x,i)=>`<button onclick="show('${x}')" id="nav-${x}">${["Team","Fixtures","Match","Subs","Preview","Stats","Training"][i]}</button>`).join("")}
+function buildNav(){document.getElementById("nav").innerHTML=["fixtures","setup","match","subs","preview","stats","training"].map((x,i)=>`<button onclick="show('${x}')" id="nav-${x}">${["Fixtures","Team","Match","Subs","Preview","Stats","Training"][i]}</button>`).join("")}
 function show(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));document.getElementById('nav-'+id)?.classList.add('active');if(id==='stats')renderStats();if(id==='match'){renderPitch();renderMatchAttendance();updateTimerDisplay()}if(id==='setup'){renderAttendance();renderRoleChoices();renderLineupChoices()}if(id==='preview')renderPreview();if(id==='subs')renderSubList()}
 function renderPlayers(){document.getElementById('players').innerHTML=squad().map((p,i)=>`<div class="row" style="margin:6px 0"><b>${String.fromCharCode(65+i)}</b><input value="${esc(p.name)}" onchange="data.players[${i}].name=this.value.trim()||'${String.fromCharCode(65+i)}';save();renderAttendance();renderMatchAttendance();renderStats()"></div>`).join('')}
-function saveSetup(){data.team=document.getElementById('teamName').value.trim()||'Juventus';save();document.getElementById('teamTitle').textContent=data.team+' · Minis';renderFixtures();alert('Team saved')}
+function saveSetup(){data.team=document.getElementById('teamName').value.trim()||'Juventus';save();document.getElementById('teamTitle').textContent=data.team+' · Minis';renderFixtures();alert(data.fixture?'Team sheet saved for '+data.fixture[2]+' vs '+data.fixture[3]:'Team saved')}
 function markAllAttendance(v){squad().forEach(p=>p.present=v);save();renderAttendance();renderMatchAttendance();renderLineupChoices()}
 function renderAttendance(){const ps=squad();document.getElementById('attendance').innerHTML=ps.map((p,i)=>`<label style="display:inline-flex;align-items:center;gap:7px;margin:4px 8px 4px 0;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:${p.present?'#e9efeb':'#fff'}"><input type="checkbox" ${p.present?'checked':''} onchange="data.players[${i}].present=this.checked;save();renderAttendance();renderMatchAttendance();renderRoleChoices();renderLineupChoices();renderPitch();updateRotationInfo();renderSubList()"><b>${esc(p.name)}</b></label>`).join('');document.getElementById('attendanceCount').textContent=ps.filter(p=>p.present).length+' present';renderRoleChoices();renderLineupChoices()}
 function renderMatchAttendance(){const ps=squad();document.getElementById('matchAttendance').innerHTML=ps.map((p,i)=>`<button class="${p.present?'':'secondary'}" style="margin:3px" onclick="toggleAttendance(${i})">${p.present?'✓ ':''}${esc(p.name)}</button>`).join('');document.getElementById('matchAttendanceCount').textContent=ps.filter(p=>p.present).length+' present'}
@@ -134,35 +145,34 @@ function toggleAttendance(i){if(matchStarted)return;data.players[i].present=!dat
 function renderRoleChoices(){const ps=presentPlayers();['gk','st'].forEach(role=>{const el=document.getElementById(role+'Select');if(!el)return;const old=data.roles[role+'First'];el.innerHTML='<option value="">Choose player…</option>'+ps.map(p=>`<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('');if(old&&ps.some(p=>p.name===old))el.value=old;});const g=data.roles.gkFirst,st=data.roles.stFirst;const note=document.getElementById('roleChoiceNote');if(note)note.textContent=(g&&st&&g!==st)?`${g} starts in goal and becomes striker at half-time. ${st} starts as striker and becomes goalkeeper.`:'Choose two different attending players. The same player cannot start in both roles.';}
 function setRoleChoice(role,value){data.roles[role+'First']=value; if(data.roles.gkFirst&&data.roles.gkFirst===data.roles.stFirst){alert('Choose two different players for goalkeeper and striker.');data.roles[role+'First']='';renderRoleChoices();return;}save();renderRoleChoices();renderLineupChoices();renderPitch();updateRotationInfo();renderSubList()}
 const LINEUP_SLOTS=[['DEF_L','Defence · Left'],['DEF_R','Defence · Right'],['MID_L','Midfield · Left'],['MID_R','Midfield · Right']];
-function defaultLineup(half){const out=presentPlayers().filter(p=>p.name!==data.roles.gkFirst&&p.name!==data.roles.stFirst);const saved=data.lineups?.[half]||{};const result={};LINEUP_SLOTS.forEach(([slot],i)=>{const pick=saved[slot];result[slot]=(out.some(p=>p.name===pick)&&!Object.values(result).includes(pick))?pick:(out[i]?.name||'');});return result;}
+function defaultLineup(half){
+ const out=presentPlayers().filter(p=>p.name!==data.roles.gkFirst&&p.name!==data.roles.stFirst);
+ const saved=data.lineups?.[half]||{};const result={};
+ if(half==='second'&&!Object.keys(saved).length){
+  const first=data.lineups?.first||{};
+  const swap={DEF_L:'MID_L',DEF_R:'MID_R',MID_L:'DEF_L',MID_R:'DEF_R'};
+  LINEUP_SLOTS.forEach(([slot])=>{const source=swap[slot];const pick=first[source];if(out.some(p=>p.name===pick)&&!Object.values(result).includes(pick))result[slot]=pick;});
+ }
+ LINEUP_SLOTS.forEach(([slot],i)=>{const pick=saved[slot]||result[slot];if(out.some(p=>p.name===pick)&&!Object.values(result).includes(pick))result[slot]=pick;else if(!result[slot])result[slot]=out.find(p=>!Object.values(result).includes(p.name))?.name||'';});
+ return result;
+}
 function renderLineupChoices(){
  const root=document.getElementById('lineupChoices');if(!root)return;
  const out=presentPlayers().filter(p=>p.name!==data.roles.gkFirst&&p.name!==data.roles.stFirst);
  if(out.length<4){root.innerHTML='<div class="notice">Mark at least 6 players as attending and choose different goalkeeper and striker players first. Four outfield players are needed.</div>';document.getElementById('lineupNote').textContent='';return;}
- const positionOptions=[['BENCH','Bench'],...LINEUP_SLOTS.map(([slot,title])=>[slot,title])];
  const maps={first:defaultLineup('first'),second:defaultLineup('second')};
- const slotFor=(half,name)=>Object.keys(maps[half]).find(slot=>maps[half][slot]===name)||'BENCH';
- let html='<div class="lineupTableWrap"><table class="lineupTable"><thead><tr><th>Player</th><th>1st half position</th><th>2nd half position</th></tr></thead><tbody>';
- for(const player of out){html+=`<tr><td><b>${esc(player.name)}</b></td>`;for(const half of ['first','second']){const current=slotFor(half,player.name);html+=`<td><select aria-label="${esc(player.name)} ${half==='first'?'first':'second'} half position" onchange="setPlayerLineupPosition('${half}','${esc(player.name)}',this.value)">${positionOptions.map(([value,label])=>`<option value="${value}" ${current===value?'selected':''}>${label}</option>`).join('')}</select></td>`;}html+='</tr>';}
+ const optionsFor=(half,slot)=>'<option value="">— Bench / empty —</option>'+out.map(p=>`<option value="${esc(p.name)}" ${maps[half][slot]===p.name?'selected':''}>${esc(p.name)}</option>`).join('');
+ let html='<div class="lineupTableWrap"><table class="lineupTable"><thead><tr><th>Position</th><th>1st half · player</th><th>2nd half · player</th></tr></thead><tbody>';
+ for(const [slot,title] of LINEUP_SLOTS){html+=`<tr><td><b>${title}</b></td>`;for(const half of ['first','second'])html+=`<td><select aria-label="${esc(title)} ${half} player" onchange="setLineupSlot('${half}','${slot}',this.value)">${optionsFor(half,slot)}</select></td>`;html+='</tr>';}
  html+='</tbody></table></div>';root.innerHTML=html;
- const note=document.getElementById('lineupNote');note.textContent=out.length===4?'All four available outfield players start in both halves; no outfield bench is available.':'Choose a position for each player in each half. Selecting a player into an occupied position swaps the two players; choosing Bench swaps with a player currently on the bench.';
+ const note=document.getElementById('lineupNote');note.textContent='Choose the player for each position in each half. Players not selected in a position remain on the bench. The second half defaults to defenders moving into midfield and midfielders moving into defence, keeping the same left/right side.';
 }
-function setPlayerLineupPosition(half,playerName,newSlot){
+function setLineupSlot(half,slot,playerName){
  data.lineups=data.lineups||{first:{},second:{}};
  const out=presentPlayers().filter(p=>p.name!==data.roles.gkFirst&&p.name!==data.roles.stFirst);
- const line=defaultLineup(half);const oldSlot=Object.keys(line).find(slot=>line[slot]===playerName)||'BENCH';
- if(oldSlot===newSlot){renderLineupChoices();return;}
- if(newSlot==='BENCH'){
-   if(oldSlot==='BENCH'){renderLineupChoices();return;}
-   const bench=out.find(p=>!Object.values(line).includes(p.name));
-   if(!bench){alert('There is no outfield substitute available with only six players attending.');renderLineupChoices();return;}
-   line[oldSlot]=bench.name;
- } else {
-   const occupant=line[newSlot];
-   if(oldSlot==='BENCH') line[newSlot]=playerName;
-   else if(occupant&&occupant!==playerName){line[newSlot]=playerName;line[oldSlot]=occupant;}
-   else line[newSlot]=playerName;
- }
+ const line=defaultLineup(half); const previous=line[slot]||'';
+ if(playerName && !out.some(p=>p.name===playerName)){renderLineupChoices();return;}
+ if(playerName){const otherSlot=Object.keys(line).find(k=>k!==slot&&line[k]===playerName);if(otherSlot){line[otherSlot]=previous||'';}line[slot]=playerName;}else line[slot]='';
  data.lineups[half]=line;save();renderLineupChoices();renderPitch();updateRotationInfo();renderSubList();
 }
 function selectedLineup(half,out){const chosen=defaultLineup(half);const names=LINEUP_SLOTS.map(([slot])=>chosen[slot]);if(names.some(n=>!n)||new Set(names).size!==4||names.some(n=>!out.some(p=>p.name===n)))return null;return Object.fromEntries(LINEUP_SLOTS.map(([slot],i)=>[slot,out.find(p=>p.name===names[i])]));}
@@ -172,8 +182,19 @@ function validateRoles(){const g=chosenRolePlayer('gk'),st=chosenRolePlayer('st'
 function recordRoleAppearances(){if(roleAppsRecorded)return;const g=chosenRolePlayer('gk'),st=chosenRolePlayer('st');if(!g||!st||g===st)return;g.gkApps++;g.stApps++;st.stApps++;st.gkApps++;roleAppsRecorded=true;save();renderStats()}
 function fixtureKey(f){return [f[0],f[1],f[2],f[3]].join('|')}
 function fixtureResult(f){return data.results?.[fixtureKey(f)]||null}
-function renderFixtures(){const team=(data.team||'Juventus').toLowerCase();const rows=FIXTURES.filter(f=>f[2].toLowerCase()===team||f[3].toLowerCase()===team);document.getElementById('fixtureCount').textContent=rows.length+' matches';document.getElementById('fixtureList').innerHTML=rows.map(f=>{const opp=f[2].toLowerCase()===team?f[3]:f[2],r=fixtureResult(f),score=r&&r.completed?`<span class="pill">${r.homeScore} – ${r.awayScore}</span>`:'';return `<div class="fixture"><div class="row"><b>${f[2]} vs ${f[3]}</b><span>${f[1]}</span></div><div class="row"><span class="small">${f[0]} · Opponent: ${opp}</span>${score}</div><div style="text-align:right;margin-top:5px"><button class="secondary" style="padding:5px 8px" onclick='selectFixture(${JSON.stringify(f)})'>${r&&r.completed?'View / edit match':'Select'}</button></div></div>`}).join('')}
-function selectFixture(f){if(running)pauseTimer();roleAppsRecorded=false;fullTimeHandled=false;data.fixture=f;resetTimer();document.getElementById('matchTitle').textContent=f[2]+' vs '+f[3];document.getElementById('matchOpponent').textContent=f[0]+' · '+f[1];renderScore();show('match')}
+function renderFixtures(){const team=(data.team||'Juventus').toLowerCase();const rows=FIXTURES.filter(f=>f[2].toLowerCase()===team||f[3].toLowerCase()===team);document.getElementById('fixtureCount').textContent=rows.length+' matches';document.getElementById('fixtureList').innerHTML=rows.map(f=>{const opp=f[2].toLowerCase()===team?f[3]:f[2],r=fixtureResult(f),key=fixtureKey(f),sheet=data.fixtureSetups?.[key],names=sheet?(sheet.attendance||[]).join(', '):'',score=r&&r.completed?`<span class="pill">${r.homeScore} – ${r.awayScore}</span>`:'';return `<div class="fixture"><div class="row"><b>${f[2]} vs ${f[3]}</b><span>${f[1]}</span></div><div class="row"><span class="small">${f[0]} · Opponent: ${opp}</span>${score}</div>${sheet?`<div class="small" style="margin-top:5px"><b>Saved team sheet:</b> ${esc(names||'No players saved')}</div>`:'<div class="small" style="margin-top:5px">No team sheet saved yet</div>'}<div style="text-align:right;margin-top:5px"><button class="secondary" style="padding:5px 8px" onclick='selectFixture(${JSON.stringify(f)})'>${r&&r.completed?'Edit team sheet / result':'Select fixture & team'}</button></div></div>`}).join('')}
+function selectFixture(f){
+ if(running)pauseTimer();
+ if(data.fixture&&!loadingFixtureSetup)save();
+ roleAppsRecorded=false;fullTimeHandled=false;data.fixture=f;
+ const setup=data.fixtureSetups?.[fixtureKey(f)];loadingFixtureSetup=true;
+ if(setup){squad().forEach(p=>p.present=(setup.attendance||[]).includes(p.name));data.roles={...data.roles,...(setup.roles||{})};data.lineups={first:{...((setup.lineups||{}).first||{})},second:{...((setup.lineups||{}).second||{})}};}
+ else {squad().forEach(p=>p.present=false);data.roles={gkFirst:'',stFirst:''};data.lineups={first:{},second:{}};}
+ loadingFixtureSetup=false;timer=0;running=false;if(interval){clearInterval(interval);interval=null}attendanceRecorded=false;matchStarted=false;roleAppsRecorded=false;fullTimeHandled=false;data.matchRuntime={timer:0,running:false,wallTime:Date.now(),fixtureKey:fixtureKey(f)};
+ save();document.getElementById('matchTitle').textContent=f[2]+' vs '+f[3];document.getElementById('matchOpponent').textContent=f[0]+' · '+f[1];
+ const lab=document.getElementById('selectedFixtureSetupLabel');if(lab)lab.textContent=`${f[0]} · ${f[1]} · ${f[2]} vs ${f[3]}. Set attendance, goalkeeper, striker and lineups here, then open Match when ready.`;
+ renderAttendance();renderRoleChoices();renderLineupChoices();renderFixtures();renderScore();show('setup');
+}
 function plan(){const n=presentPlayers().length;if(n<6)return {n,times:[],note:'Need at least 6 players'};if(n===6)return {n,times:[20],note:'No substitutions during either half. Outfield players swap defence/midfield at half-time. GK and striker swap.'};if(n===7)return {n,times:[4,8,12,16,20,24,28,32,36],note:'One outfield player rotates every 4 minutes. At half-time the lines swap and one planned outfield substitution keeps the rotation continuous. Each outfield player gets 16 minutes in defence and 16 in midfield over 40 minutes.'};return {n,times:[6+2/3,13+1/3,20,26+2/3,33+1/3],note:'Two outfield players rotate together every 6:40. The same players remain on at half-time while defence/midfield swap. Each outfield player gets 13 minutes 20 seconds in defence and 13 minutes 20 seconds in midfield over 40 minutes.'}}
 function roleSchedule(half=0){
  const ps=presentPlayers(), n=ps.length;
@@ -319,11 +340,13 @@ function pitchSwapMarkers(){
 }
 function pitchSwapTag(mark){if(!mark)return '';return `<span class="swapTag"><span class="off">🔴 OFF ${esc(mark.off.name)}</span><br>↓<br><span class="on">🟢 ON ${esc(mark.on.name)}</span></span>`}
 function renderPitch(){const ps=presentPlayers(),m=currentRotation();document.getElementById('squadCount').textContent=ps.length+' present';const name=p=>p?esc(p.name):'—';const g=chosenRolePlayer('gk'),st=chosenRolePlayer('st'),marks=pitchSwapMarkers();const slots=[['gk','GK',timer<1200?g:st],['ld','DEF L',m?.slots.DEF_L,'DEF_L'],['rd','DEF R',m?.slots.DEF_R,'DEF_R'],['lm','MID L',m?.slots.MID_L,'MID_L'],['rm','MID R',m?.slots.MID_R,'MID_R'],['st','ST',timer<1200?st:g]];document.getElementById('pitch').innerHTML=slots.map(s=>{const mark=s[3]?marks.slots[s[3]]:null;return `<div class="pos ${s[0]} ${mark?'swapTarget':''}"><div class="dot">${name(s[2]).slice(0,1)}</div><small>${s[1]} · ${name(s[2])}</small>${pitchSwapTag(mark)}</div>`}).join('')+(marks.status?`<div class="swapLegend"><span class="live">${marks.status}</span><span>Yellow ring = position involved</span></div>`:'');updateRotationInfo()}
-function startTimer(){if(running||timer>=40*60)return;if(presentPlayers().length<6){alert('Select at least 6 players as attending before starting.');return}if(!validateRoles())return;recordAttendance();recordRoleAppearances();running=true;matchStarted=true;lastTick=performance.now();interval=setInterval(()=>{const now=performance.now();const delta=Math.max(0,(now-lastTick)/1000);lastTick=now;advanceMatchClock(delta);updateTimerDisplay();renderPitch();if(timer>=40*60){pauseTimer();finishMatch()}},200)}
+function requestMatchWakeLock(){if('wakeLock' in navigator && running){navigator.wakeLock.request('screen').then(lock=>{wakeLock=lock;lock.addEventListener('release',()=>{if(wakeLock===lock)wakeLock=null})}).catch(()=>{});}}
+function tickMatchClock(){if(!running)return;const now=Date.now();const delta=Math.max(0,(now-lastTick)/1000);lastTick=now;advanceMatchClock(delta);persistMatchRuntime();localStorage.setItem('perrywoodsV24',JSON.stringify(data));updateTimerDisplay();renderPitch();if(timer>=2400){pauseTimer();finishMatch()}}
+function startTimer(){if(running||timer>=40*60)return;if(presentPlayers().length<6){alert('Select at least 6 players as attending before starting.');return}if(!validateRoles())return;recordAttendance();recordRoleAppearances();running=true;matchStarted=true;lastTick=Date.now();persistMatchRuntime();save();requestMatchWakeLock();interval=setInterval(tickMatchClock,500)}
 function fastForward(seconds){if(running)pauseTimer();if(timer>=2400)return;if(presentPlayers().length<6||!validateRoles())return;recordAttendance();recordRoleAppearances();matchStarted=true;advanceMatchClock(Math.min(seconds,2400-timer));updateTimerDisplay();renderPitch();save();if(timer>=2400)finishMatch()}
 function fastForwardToNext(){if(running)pauseTimer();const next=plan().times.map(x=>Math.round(x*60)).find(t=>t>timer+0.1);fastForward(next==null?2400-timer:next-timer)}
-function pauseTimer(){if(!running)return;const now=performance.now();const delta=Math.max(0,(now-lastTick)/1000);advanceMatchClock(delta);running=false;clearInterval(interval);interval=null;save();updateTimerDisplay();renderPitch();renderStats()}
-function resetTimer(){if(running)pauseTimer();if(timer>=2400&&!confirm('Reset the match clock? The saved fixture score will remain.'))return;timer=0;attendanceRecorded=false;matchStarted=false;fullTimeHandled=false;save();updateTimerDisplay();renderPitch()}
+function pauseTimer(){if(!running)return;const now=Date.now();const delta=Math.max(0,(now-lastTick)/1000);advanceMatchClock(delta);running=false;clearInterval(interval);interval=null;if(wakeLock){wakeLock.release().catch(()=>{});wakeLock=null}persistMatchRuntime();save();updateTimerDisplay();renderPitch();renderStats()}
+function resetTimer(){if(running)pauseTimer();if(timer>=2400&&!confirm('Reset the match clock? The saved fixture score will remain.'))return;timer=0;attendanceRecorded=false;matchStarted=false;fullTimeHandled=false;data.matchRuntime={timer:0,running:false,wallTime:Date.now(),fixtureKey:data.fixture?fixtureKey(data.fixture):null};save();updateTimerDisplay();renderPitch()}
 let fullTimeHandled=false;
 function renderScore(){const f=data.fixture;if(!f)return;const r=fixtureResult(f)||{homeScore:0,awayScore:0};document.getElementById('homeScoreLabel').textContent=f[2];document.getElementById('awayScoreLabel').textContent=f[3];document.getElementById('homeScore').textContent=r.homeScore||0;document.getElementById('awayScore').textContent=r.awayScore||0}
 function recordTeamGoal(forUs){if(!data.fixture){alert('Select a fixture first.');return}const f=data.fixture,key=fixtureKey(f);data.results=data.results||{};const r=data.results[key]||{homeScore:0,awayScore:0,completed:false};const team=(data.team||'Juventus').toLowerCase();const teamIsHome=f[2].toLowerCase()===team;if(forUs){if(teamIsHome)r.homeScore++;else r.awayScore++;data.events.push('⚽ Goal for '+data.team+' ('+r.homeScore+'–'+r.awayScore+')')}else{if(teamIsHome)r.awayScore++;else r.homeScore++;data.events.push('⚽ Goal against '+data.team+' ('+r.homeScore+'–'+r.awayScore+')')}data.results[key]=r;save();renderScore();renderFixtures();eventText()}
@@ -350,6 +373,10 @@ function exportData(){const blob=new Blob([JSON.stringify(data,null,2)],{type:'a
 function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{data=JSON.parse(r.result);save();location.reload()}catch{alert('Invalid backup')}};r.readAsText(f)}
 function init(){document.getElementById('teamName').value=data.team||'Juventus';document.getElementById('teamTitle').textContent=(data.team||'Juventus')+' · Minis';renderPlayers();buildNav();renderFixtures();renderAttendance();renderRoleChoices();renderMatchAttendance();renderStats();renderDrills();renderPitch();renderScore();updateTimerDisplay();syncPreviewOptions();renderPreview();eventText();document.getElementById('nav-setup').classList.add('active')}
 init();
+function restoreMatchRuntime(){const r=data.matchRuntime;if(!r||!r.running||!data.fixture||r.fixtureKey!==fixtureKey(data.fixture))return;timer=Math.max(0,Math.min(2400,Number(r.timer)||0));const elapsed=Math.max(0,(Date.now()-(Number(r.wallTime)||Date.now()))/1000);attendanceRecorded=!!r.attendanceRecorded;matchStarted=!!r.matchStarted;roleAppsRecorded=!!r.roleAppsRecorded;if(elapsed>0)advanceMatchClock(Math.min(elapsed,2400-timer));if(timer>=2400){running=false;persistMatchRuntime();finishMatch();return;}running=true;lastTick=Date.now();updateTimerDisplay();renderPitch();requestMatchWakeLock();interval=setInterval(tickMatchClock,500);}
+restoreMatchRuntime();
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&running){tickMatchClock();requestMatchWakeLock();}});
+window.addEventListener('pagehide',()=>{if(running){tickMatchClock();persistMatchRuntime();localStorage.setItem('perrywoodsV24',JSON.stringify(data));}});
 </script>
-<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('service-worker.js?v=44').catch(()=>{}))}</script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('service-worker.js?v=46').catch(()=>{}))}</script>
 </body></html>
