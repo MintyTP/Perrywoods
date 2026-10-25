@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b1d4e">
 <link rel="manifest" href="manifest.json">
-<title>Perrywoods FC Team Manager v46</title>
+<title>Perrywoods FC Team Manager v47</title>
 <style>
 :root{--g:#0b1d4e;--g2:#123a91;--bg:#f3f5fb;--card:#fff;--muted:#59657f;--line:#d9dfed;--accent:#ffcc00}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#18221d}
@@ -36,7 +36,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px;borde
 </style>
 </head>
 <body>
-<header><img class="crest" src="icon-192.png" alt="Perrywoods FC crest"><div class="brand"><h1>Perrywoods FC Team Manager</h1><div class="sub" id="teamTitle">Team setup · Minis</div><span class="versionTag">APP v46</span></div></header>
+<header><img class="crest" src="icon-192.png" alt="Perrywoods FC crest"><div class="brand"><h1>Perrywoods FC Team Manager</h1><div class="sub" id="teamTitle">Team setup · Minis</div><span class="versionTag">APP v47</span></div></header>
 <nav id="nav"></nav>
 <main>
 <section id="setup" class="page active">
@@ -253,17 +253,22 @@ function roleSchedule(half=0){
    found.steps.forEach(step=>result.push(make([step.rest],step.slots)));
    return result;
  }
- // Eight attending: two substitutes rotate together. Keep the established
- // balanced blocks; the incoming pair replace the pair scheduled to rest.
- const groups=[resting, [initial.DEF_L,initial.DEF_R], [initial.MID_L,initial.MID_R]];
- const schedules=[];let slots={...initial};
- schedules.push(make(groups[0],slots));
- for(let i=1;i<groups.length;i++){
-   const incoming=groups[i-1], nextRest=groups[i], nextSlots={...slots};
-   const vacated=Object.keys(slots).filter(k=>nextRest.includes(slots[k]));
-   vacated.forEach((k,j)=>{nextSlots[k]=incoming[j];});
-   slots=nextSlots;schedules.push(make(nextRest,slots));
- }
+ // Eight attending: six outfield players, four on and two resting.
+ // Rotate the resting pair into the two DEF slots at 6:40, then rotate
+ // the pair who came off defence into the two MID slots at 13:20.
+ // This always replaces the occupants of the chosen slots and never puts
+ // the same player in two positions or leaves an attending player unaccounted for.
+ const schedules=[];let slots={...initial}, bench=[...resting];
+ schedules.push(make(bench,slots));
+ const rotatePair=(targetSlots)=>{
+   const outgoing=targetSlots.map(k=>slots[k]);
+   const nextSlots={...slots};
+   targetSlots.forEach((k,i)=>{nextSlots[k]=bench[i];});
+   slots=nextSlots;bench=outgoing;
+   schedules.push(make(bench,slots));
+ };
+ rotatePair(['DEF_L','DEF_R']);
+ rotatePair(['MID_L','MID_R']);
  return schedules;
 }
 function currentRotation(){
@@ -378,5 +383,5 @@ restoreMatchRuntime();
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&running){tickMatchClock();requestMatchWakeLock();}});
 window.addEventListener('pagehide',()=>{if(running){tickMatchClock();persistMatchRuntime();localStorage.setItem('perrywoodsV24',JSON.stringify(data));}});
 </script>
-<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('service-worker.js?v=46').catch(()=>{}))}</script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('service-worker.js?v=47').catch(()=>{}))}</script>
 </body></html>
