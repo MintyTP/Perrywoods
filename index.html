@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b1d4e">
 <link rel="manifest" href="manifest.json">
-<title>Perrywoods FC Team Manager v47</title>
+<title>Perrywoods FC Team Manager v48</title>
 <style>
 :root{--g:#0b1d4e;--g2:#123a91;--bg:#f3f5fb;--card:#fff;--muted:#59657f;--line:#d9dfed;--accent:#ffcc00}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#18221d}
@@ -36,7 +36,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px;borde
 </style>
 </head>
 <body>
-<header><img class="crest" src="icon-192.png" alt="Perrywoods FC crest"><div class="brand"><h1>Perrywoods FC Team Manager</h1><div class="sub" id="teamTitle">Team setup · Minis</div><span class="versionTag">APP v47</span></div></header>
+<header><img class="crest" src="icon-192.png" alt="Perrywoods FC crest"><div class="brand"><h1>Perrywoods FC Team Manager</h1><div class="sub" id="teamTitle">Team setup · Minis</div><span class="versionTag">APP v48</span></div></header>
 <nav id="nav"></nav>
 <main>
 <section id="setup" class="page active">
@@ -148,12 +148,17 @@ const LINEUP_SLOTS=[['DEF_L','Defence · Left'],['DEF_R','Defence · Right'],['M
 function defaultLineup(half){
  const out=presentPlayers().filter(p=>p.name!==data.roles.gkFirst&&p.name!==data.roles.stFirst);
  const saved=data.lineups?.[half]||{};const result={};
- if(half==='second'&&!Object.keys(saved).length){
+ if(half==='second'){
+  // The second-half starting four is ALWAYS derived from the first-half four:
+  // DEF_L -> MID_L, DEF_R -> MID_R, MID_L -> DEF_L, MID_R -> DEF_R.
+  // Do not let an older saved second-half lineup override the required swap.
   const first=data.lineups?.first||{};
   const swap={DEF_L:'MID_L',DEF_R:'MID_R',MID_L:'DEF_L',MID_R:'DEF_R'};
-  LINEUP_SLOTS.forEach(([slot])=>{const source=swap[slot];const pick=first[source];if(out.some(p=>p.name===pick)&&!Object.values(result).includes(pick))result[slot]=pick;});
+  LINEUP_SLOTS.forEach(([slot])=>{const pick=first[swap[slot]];if(out.some(p=>p.name===pick)&&!Object.values(result).includes(pick))result[slot]=pick;});
+ } else {
+  LINEUP_SLOTS.forEach(([slot])=>{const pick=saved[slot];if(out.some(p=>p.name===pick)&&!Object.values(result).includes(pick))result[slot]=pick;});
  }
- LINEUP_SLOTS.forEach(([slot],i)=>{const pick=saved[slot]||result[slot];if(out.some(p=>p.name===pick)&&!Object.values(result).includes(pick))result[slot]=pick;else if(!result[slot])result[slot]=out.find(p=>!Object.values(result).includes(p.name))?.name||'';});
+ LINEUP_SLOTS.forEach(([slot])=>{if(!result[slot])result[slot]=out.find(p=>!Object.values(result).includes(p.name))?.name||'';});
  return result;
 }
 function renderLineupChoices(){
@@ -165,7 +170,7 @@ function renderLineupChoices(){
  let html='<div class="lineupTableWrap"><table class="lineupTable"><thead><tr><th>Position</th><th>1st half · player</th><th>2nd half · player</th></tr></thead><tbody>';
  for(const [slot,title] of LINEUP_SLOTS){html+=`<tr><td><b>${title}</b></td>`;for(const half of ['first','second'])html+=`<td><select aria-label="${esc(title)} ${half} player" onchange="setLineupSlot('${half}','${slot}',this.value)">${optionsFor(half,slot)}</select></td>`;html+='</tr>';}
  html+='</tbody></table></div>';root.innerHTML=html;
- const note=document.getElementById('lineupNote');note.textContent='Choose the player for each position in each half. Players not selected in a position remain on the bench. The second half defaults to defenders moving into midfield and midfielders moving into defence, keeping the same left/right side.';
+ const note=document.getElementById('lineupNote');note.textContent='Set the first-half positions. At half-time, the four outfield players automatically swap defence and midfield, keeping the same left/right side. The second-half starting lineup is automatic.';
 }
 function setLineupSlot(half,slot,playerName){
  data.lineups=data.lineups||{first:{},second:{}};
